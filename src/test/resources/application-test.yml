@@ -1,0 +1,27 @@
+logging:
+  level:
+    org.springframework.r2dbc.core.DefaultDatabaseClient: DEBUG
+    io.r2dbc: DEBUG
+
+spring:
+  application:
+    name: online-store
+
+  sql:
+    init:
+      schema-locations: classpath:/db/schema.sql
+
+  r2dbc:
+    url: r2dbc:h2:mem:///~/db/testdb;MODE=MYSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=TRUE
+    username: root
+    password: root
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        cache:
+          use-second-level-cache: true
+          region:
+            factory-class: org.hibernate.cache.jcache.JCacheRegionFactory
