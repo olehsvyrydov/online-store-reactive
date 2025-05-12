@@ -1,0 +1,44 @@
+server:
+  port: 8081
+  servlet:
+    encoding:
+      charset: UTF-8
+
+logging:
+  level:
+    org.javaprojects.onlinestore: DEBUG
+
+spring:
+  application:
+    name: online-store
+
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:/db/schema.sql
+      data-locations: classpath:/db/data.sql
+
+  r2dbc:
+    url: r2dbc:postgresql://database:5432/online-store
+    username: user
+    password: password
+    pool:
+      enabled: true
+      initial-size: 5
+      max-size: 10
+    properties:
+      schema: public
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        cache:
+          use-second-level-cache: true
+          region:
+            factory-class: org.hibernate.cache.jcache.JCacheRegionFactory
+
+api:
+  online-store:
+    path: ${ONLINE_STORE_PATH:-http://localhost:8082}

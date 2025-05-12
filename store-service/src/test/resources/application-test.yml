@@ -1,0 +1,39 @@
+logging:
+  level:
+    org.springframework.r2dbc.core.DefaultDatabaseClient: DEBUG
+    io.r2dbc: DEBUG
+    org.javaprojects.onlinestore: DEBUG
+    org.springframework.data: DEBUG
+
+spring:
+  application:
+    name: online-store
+
+  cache:
+    redis:
+      time-to-live: PT60S
+
+  sql:
+    init:
+      schema-locations: classpath:/db/schema.sql
+      data-locations: classpath:/db/data.sql
+      mode: always
+
+  r2dbc:
+    url: r2dbc:h2:mem:///testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=TRUE
+    username: root
+    password: root
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        cache:
+          use-second-level-cache: true
+          region:
+            factory-class: org.hibernate.cache.jcache.JCacheRegionFactory
+
+api:
+  online-store:
+    path: ${ONLINE_STORE_PATH:-http://localhost:8082}

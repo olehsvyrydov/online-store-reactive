@@ -1,1 +1,2 @@
 rootProject.name = 'Online-store'
+include 'payment-service', 'store-service', 'payment-api'

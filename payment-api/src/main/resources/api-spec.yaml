@@ -1,0 +1,106 @@
+openapi: 3.0.3
+info:
+  title: Sample API
+  version: 1.0.0
+  description: |
+    This is a sample API for managing payments and balance.
+    It includes endpoints for making payments and checking the account balance.
+servers:
+  - description: Local server for testing goals only
+    url: http://localhost:8080
+
+paths:
+  /pay/{amount}:
+    get:
+      tags:
+        - Payment
+      summary: Making a payment
+      description: |
+        This is request to subtract the amount from the account. 
+        If the amount is greater than the balance, it will return false.
+      operationId: makePayment
+      parameters:
+        - name: amount
+          in: path
+          required: true
+          description: Amount to be paid
+          schema:
+            type: number
+            format: float
+            minimum: 0
+          example:
+            amount: 10.30
+      responses:
+        '200':
+          description: |
+            Payment information
+            This will return true if the payment was successful, false otherwise.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateBalanceResponse'
+              examples:
+                Success example:
+                  value:
+                    success: true
+                    currentBalance: 90.20
+                    error: null
+
+        '400':
+          description: Bad request in case of invalid amount
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateBalanceResponse'
+              examples:
+                Low balance error example:
+                  value:
+                    success: false
+                    currentBalance: 10.30
+                    error: "Insufficient balance"
+                Validation error example:
+                  value:
+                    success: false
+                    currentBalance: 10.30
+                    error: "Validation exception"
+
+  /balance:
+    get:
+      tags:
+        - Balance
+      summary: Get the balance on the account
+      operationId: getBalance
+      responses:
+        '200':
+          description: Balance information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetBalanceResponse'
+              example:
+                balance: 100.50
+
+components:
+  schemas:
+    UpdateBalanceResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        currentBalance:
+          type: number
+          format: float
+        error:
+          type: string
+    GetBalanceResponse:
+      type: object
+      properties:
+          balance:
+            type: number
+            format: float
+
+tags:
+  - name: Payment
+    description: Operations related to payments
+  - name: Balance
+    description: Operations related to balance
