@@ -2,6 +2,7 @@ package org.javaprojects.onlinestore.controllers;
 
 import org.javaprojects.onlinestore.entities.Cart;
 import org.javaprojects.onlinestore.entities.Item;
+import org.javaprojects.onlinestore.helpers.RedisTestContainer;
 import org.javaprojects.onlinestore.repositories.CartRepository;
 import org.javaprojects.onlinestore.repositories.ItemsRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,7 +28,8 @@ import static org.mockito.Mockito.when;
 @ActiveProfiles("test")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureWebTestClient
-class CartControllerTest {
+class CartControllerTest extends RedisTestContainer
+{
     @Autowired
     private WebTestClient webTestClient;
     @MockitoBean
@@ -44,11 +46,11 @@ class CartControllerTest {
 
         when(cartRepository.removeFromCart(anyLong())).thenReturn(Mono.empty());
         when(cartRepository.resetItemCount(anyLong())).thenReturn(Mono.empty());
-        when(cartRepository.decrementItemCount(anyLong())).thenReturn(Mono.just(item1));
-        when(cartRepository.incrementItemCount(anyLong())).thenReturn(Mono.just(item1));
+        when(cartRepository.decrementItemCount(anyLong())).thenReturn(Mono.empty());
+        when(cartRepository.incrementItemCount(anyLong())).thenReturn(Mono.empty());
         when(cartRepository.findByItemId(anyLong())).thenReturn(Mono.just(cart1));
         when(itemRepository.findById(anyLong())).thenReturn(Mono.just(item1));
-        when(cartRepository.insertToCart(anyLong())).thenReturn(Mono.just(cart1));
+        when(cartRepository.insertToCart(anyLong())).thenReturn(Mono.empty());
         when(cartRepository.findAll()).thenReturn(cartFlux);
     }
 

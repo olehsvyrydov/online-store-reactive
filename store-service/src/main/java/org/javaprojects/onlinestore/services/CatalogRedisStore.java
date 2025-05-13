@@ -52,6 +52,7 @@ public class CatalogRedisStore {
         );
 
         return redis.opsForHash().putAll(key, map)
+            .doOnNext(__ -> log.info("► HSET done for {}", key))
             .then(redis.opsForZSet().add(Z_PRICE, String.valueOf(itemModel.getId()), itemModel.getPrice().doubleValue()))
             .then(redis.opsForZSet().add(Z_TITLE, itemModel.getTitle() + KEY_DELIMITER + itemModel.getId(), 0))
             .then();
@@ -87,6 +88,7 @@ public class CatalogRedisStore {
         return redis.<String, String>opsForHash()
             .entries(key(id))
             .collectMap(Map.Entry::getKey, Map.Entry::getValue)
+            .filter(map -> !map.isEmpty())
             .map(this::toItemModel);
     }
 

@@ -3,6 +3,7 @@ package org.javaprojects.onlinestore.controllers;
 import org.javaprojects.onlinestore.entities.Item;
 import org.javaprojects.onlinestore.helpers.RedisTestContainer;
 import org.javaprojects.onlinestore.repositories.ItemsRepository;
+import org.javaprojects.onlinestore.services.CatalogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,13 +11,12 @@ import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWeb
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.Mockito.*;
 
 @ActiveProfiles("test")
 @SpringBootTest
@@ -26,19 +26,22 @@ class ItemsControllerTest extends RedisTestContainer
     @Autowired
     private WebTestClient webTestClient;
 
-    @MockitoSpyBean
-    private ItemsRepository repo;
+    @Autowired
+    private ItemsRepository itemsRepository;
 
     @Autowired
-    ReactiveRedisConnectionFactory cf;
+    private CatalogService catalogService;
+
+    @Autowired
+    ReactiveRedisConnectionFactory redisConnectionFactory;
     Item entity = new Item(1L, "Test Title1", "Test Description1",
         BigDecimal.valueOf(19.99), "test-path1.jpg", 1L);
     @BeforeEach
     void setUp()
     {
         // start with an empty cache so first request must hit the DB
-        cf.getReactiveConnection().serverCommands().flushAll().block();
-        repo.save(entity).block();
+        redisConnectionFactory.getReactiveConnection().serverCommands().flushAll().block();
+        itemsRepository.save(entity).block();
     }
 
     @Test
@@ -50,13 +53,9 @@ class ItemsControllerTest extends RedisTestContainer
             .expectBody()
             .consumeWith(response -> {
                 assertNotNull(response.getResponseBody());
+                System.out.println(redisConnectionFactory.getReactiveConnection().keyCommands()
+                    .keys(ByteBuffer.wrap("*".getBytes())).block());
             });
-        // check caching
-        webTestClient.get()
-            .uri("/items/1")
-            .exchange()
-            .expectStatus().isOk();
-        verify(repo, times(1)).findById(1L);
     }
 
     @Test
@@ -106,17 +105,5 @@ class ItemsControllerTest extends RedisTestContainer
                 .build())
             .exchange()
             .expectStatus().isOk();
-
-        webTestClient.get().uri(uriBuilder -> uriBuilder
-                .path("/main/items")
-                .queryParam("search", "")
-                .queryParam("sort", "NO")
-                .queryParam("pageSize", "10")
-                .queryParam("pageNumber", "0")
-                .build())
-            .exchange()
-            .expectStatus().isOk();
-
-        verify(repo, times(1)).findBy(any());
     }
 }

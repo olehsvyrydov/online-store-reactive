@@ -82,17 +82,22 @@ public class CatalogService {
 
     public Mono<ItemModel> getItemById(long id) {
         return cache.findById(id)
-            .switchIfEmpty(Mono.defer(() ->
+            .switchIfEmpty(
                 itemRepository.findById(id)
                     .switchIfEmpty(Mono.error(new IllegalStateException("Item not found")))
                     .map(item -> toModel(item, item.getCount()))
-                    .flatMap(m -> cache.save(m).thenReturn(m))
-            ));
+                    .flatMap(itemModel -> cache.save(itemModel).thenReturn(itemModel))
+            );
     }
 
     public Mono<Void> incrementQuantity(Long itemId) {
         return cartRepository.findByItemId(itemId)
-            .switchIfEmpty(cartRepository.insertToCart(itemId))
+            .switchIfEmpty(
+                Mono.defer(() ->
+                    cartRepository.insertToCart(itemId)
+                        .then(Mono.empty())
+                )
+            )
             .then(cartRepository.incrementItemCount(itemId))
             .then(cache.incrementCount(itemId))
             .then();
@@ -100,6 +105,7 @@ public class CatalogService {
 
     public Mono<Void> decrementQuantity(Long itemId) {
         return cartRepository.decrementItemCount(itemId)
+            .then(Mono.defer(() -> itemRepository.findById(itemId)))
             .flatMap(item -> {
                 log.debug("Decrement count for item id: {}, title: {}, count: {}",
                     item.getId(), item.getTitle(), item.getCount());
