@@ -1,9 +1,9 @@
 logging:
   level:
-    org.springframework.r2dbc.core.DefaultDatabaseClient: DEBUG
-    io.r2dbc: DEBUG
+#    org.springframework.r2dbc.core.DefaultDatabaseClient: DEBUG
+#    io.r2dbc: DEBUG
     org.javaprojects.onlinestore: DEBUG
-    org.springframework.data: DEBUG
+#    org.springframework.data: DEBUG
 
 spring:
   application:

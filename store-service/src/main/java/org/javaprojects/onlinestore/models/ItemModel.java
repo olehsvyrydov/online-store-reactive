@@ -10,12 +10,12 @@ public class ItemModel {
     private String description;
     private BigDecimal price;
     private String imgPath;
-    private int count;
+    private long count;
 
     public ItemModel() {
     }
 
-    public ItemModel(Item item, int count) {
+    public ItemModel(Item item, long count) {
         this.id = item.getId();
         this.title = item.getTitle();
         this.description = item.getDescription();
@@ -24,7 +24,7 @@ public class ItemModel {
         this.count = count;
     }
 
-    public ItemModel(Long id, String title, String description, BigDecimal price, String imgPath, int count) {
+    public ItemModel(Long id, String title, String description, BigDecimal price, String imgPath, long count) {
         this.id = id;
         this.title = title;
         this.description = description;
@@ -88,7 +88,7 @@ public class ItemModel {
         return this;
     }
 
-    public int getCount()
+    public long getCount()
     {
         return count;
     }
@@ -119,7 +119,7 @@ public class ItemModel {
         result = 31 * result + description.hashCode();
         result = 31 * result + price.hashCode();
         result = 31 * result + imgPath.hashCode();
-        result = 31 * result + count;
+        result = 31 * result + (int)count;
         return result;
     }
 }

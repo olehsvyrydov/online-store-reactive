@@ -24,16 +24,16 @@
         </p>
         <p>
             <b th:text="${itemModel.getTitle()}"></b>
-            <b th:text="${itemModel.getPrice()}+' руб.'" style="text-align:right;"></b>
+            <b th:text="${#numbers.formatDecimal(itemModel.getPrice, 2, 2)} + ' руб.'" style="text-align:right;"></b>
         </p>
         <p>
             <span th:text="${itemModel.getDescription()}"></span>
         </p>
         <form th:action="${'/items/'+itemModel.getId()}" method="post">
-            <button name="action" value="minus">-</button>
+            <button name="action" value="MINUS">-</button>
             <span th:text="${itemModel.getCount()}"></span>
-            <button name="action" value="plus">+</button>
-            <button name="action" value="plus" th:if="${itemModel.getCount()==0}" style="float:right;">В корзину</button>
+            <button name="action" value="PLUS">+</button>
+            <button name="action" value="ADD_TO_CART" th:if="${itemModel.getCount()==0}" style="float:right;">В корзину</button>
         </form>
     </div>
 </div>

@@ -23,4 +23,3 @@ You can set up initial **balance** into [docker-compose.yml](docker-compose.yml)
 ```text
 http://localhost:8081/
 ```
-

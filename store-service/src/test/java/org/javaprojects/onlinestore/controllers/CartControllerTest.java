@@ -37,7 +37,7 @@ class CartControllerTest {
 
     @BeforeEach
     void setUp() {
-        Item item1 = new Item(1L, "Test Title1", "Test Description1", new BigDecimal("19.99"), "test-path1.jpg", 1);
+        Item item1 = new Item(1L, "Test Title1", "Test Description1", new BigDecimal("19.99"), "test-path1.jpg", 1L);
         Cart cart1 = new Cart(1L);
         Cart cart2 = new Cart(2L);
         Flux<Cart> cartFlux = Flux.fromIterable(List.of(cart1, cart2));

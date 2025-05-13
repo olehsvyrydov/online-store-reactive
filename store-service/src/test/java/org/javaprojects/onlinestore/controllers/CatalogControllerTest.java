@@ -12,6 +12,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
@@ -43,7 +44,7 @@ class CatalogControllerTest {
     void getAllProductsWithDefaultParameters() {
         ItemModel item = new ItemModel(1L, "Test Title", "Test Description", new BigDecimal("19.99"), "test-path.jpg", 0);
         List<ItemModel> itemList = Collections.singletonList(item);
-        when(catalogService.findAllItems(anyInt(), anyInt(), anyString(), any(Sorting.class))).thenReturn(Mono.just(itemList));
+        when(catalogService.findAllItems(anyInt(), anyInt(), anyString(), any(Sorting.class))).thenReturn(Flux.fromIterable(itemList));
         when(catalogService.getItemsCount()).thenReturn(Mono.just(10L));
         webTestClient.get().uri(uriBuilder -> uriBuilder
                 .path("/main/items")

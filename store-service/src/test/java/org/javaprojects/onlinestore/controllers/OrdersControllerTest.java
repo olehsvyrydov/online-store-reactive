@@ -32,8 +32,8 @@ class OrdersControllerTest {
 
     @Test
     void getOrders() {
-        Item item1 = new Item(1L, "Test Title1", "Test Description1", new BigDecimal("19.99"), "test-path1.jpg", 1);
-        Item item2 = new Item(2L, "Test Title2", "Test Description2", new BigDecimal("29.99"), "test-path2.jpg", 2);
+        Item item1 = new Item(1L, "Test Title1", "Test Description1", new BigDecimal("19.99"), "test-path1.jpg", 1L);
+        Item item2 = new Item(2L, "Test Title2", "Test Description2", new BigDecimal("29.99"), "test-path2.jpg", 2L);
         OrderModel orderModel = new OrderModel(1L, List.of(new ItemModel(item1, item1.getCount()), new ItemModel(item2, item1.getCount())), new BigDecimal("79.97"));
         OrderModel orderModel2 = new OrderModel(1L, List.of(new ItemModel(item1, item1.getCount()), new ItemModel(item2, item2.getCount())), new BigDecimal("79.97"));
         Flux<OrderModel> orderModelList = Flux.fromIterable(List.of(orderModel, orderModel2));
@@ -50,8 +50,8 @@ class OrdersControllerTest {
 
     @Test
     void getOrderById() {
-        Item item1 = new Item(1L, "Test Title1", "Test Description1", new BigDecimal("19.99"), "test-path1.jpg", 1);
-        Item item2 = new Item(2L, "Test Title2", "Test Description2", new BigDecimal("29.99"), "test-path2.jpg", 2);
+        Item item1 = new Item(1L, "Test Title1", "Test Description1", new BigDecimal("19.99"), "test-path1.jpg", 1L);
+        Item item2 = new Item(2L, "Test Title2", "Test Description2", new BigDecimal("29.99"), "test-path2.jpg", 2L);
         OrderModel orderModel = new OrderModel(1L, List.of(new ItemModel(item1, item1.getCount()), new ItemModel(item2, item2.getCount())), new BigDecimal("79.97"));
         Mockito.when(catalogService.getOrderById(anyLong())).thenReturn(Mono.just(orderModel));
         webTestClient.get()

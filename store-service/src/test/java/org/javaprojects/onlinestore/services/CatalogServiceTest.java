@@ -49,11 +49,11 @@ class CatalogServiceTest extends RedisTestContainer
     @BeforeEach
     void setUp()
     {
-        Item item1 = new Item(1L, "Smartphone", "Latest model smartphone with advanced features.", BigDecimal.valueOf(699.99), "/images/smartphone.jpg", 0);
-        Item item2 = new Item(2L, "Laptop", "High-performance laptop suitable for gaming and work.", BigDecimal.valueOf(1199.50), "images/laptop.jpg'", 0);
-        Item item3 = new Item(3L, "Headphones", "Noise-cancelling over-ear headphones with superior sound quality.", BigDecimal.valueOf(199.95), "/images/headphones.jpg", 0);
-        Item item4 = new Item(4L, "Smartwatch", "Feature-packed smartwatch with fitness tracking capabilities.", BigDecimal.valueOf(249.99), "/images/smartwatch.jpg", 0);
-        Item item5 = new Item(5L, "Camera", "Digital camera with high resolution and optical zoom.", BigDecimal.valueOf(449.00), "/images/camera.jpg", 0);
+        Item item1 = new Item(1L, "Smartphone", "Latest model smartphone with advanced features.", BigDecimal.valueOf(699.99), "/images/smartphone.jpg", 0L);
+        Item item2 = new Item(2L, "Laptop", "High-performance laptop suitable for gaming and work.", BigDecimal.valueOf(1199.50), "images/laptop.jpg'", 0L);
+        Item item3 = new Item(3L, "Headphones", "Noise-cancelling over-ear headphones with superior sound quality.", BigDecimal.valueOf(199.95), "/images/headphones.jpg", 0L);
+        Item item4 = new Item(4L, "Smartwatch", "Feature-packed smartwatch with fitness tracking capabilities.", BigDecimal.valueOf(249.99), "/images/smartwatch.jpg", 0L);
+        Item item5 = new Item(5L, "Camera", "Digital camera with high resolution and optical zoom.", BigDecimal.valueOf(449.00), "/images/camera.jpg", 0L);
         itemsRepository.save(item1).block();
         itemsRepository.save(item2).block();
         itemsRepository.save(item3).block();

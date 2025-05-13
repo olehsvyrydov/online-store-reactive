@@ -65,7 +65,7 @@
                             <b th:text="${itemModel.getTitle()}"></b>
                         </td>
                         <td>
-                            <b th:text="${itemModel.getPrice()}+' руб.'"></b>
+                            <b th:text="${#numbers.formatDecimal(itemModel.getPrice, 2, 2)} + ' руб.'"></b>
                         </td>
                     </tr>
                     <tr>
@@ -77,7 +77,7 @@
                                 <button name="action" value="MINUS">-</button>
                                 <span th:text="${itemModel.getCount()}"></span>
                                 <button name="action" value="PLUS">+</button>
-                                <button name="action" value="PLUS" th:if="${itemModel.getCount()==0}" style="float:right;">В корзину</button>
+                                <button name="action" value="ADD_TO_CART" th:if="${itemModel.getCount()==0}" style="float:right;">В корзину</button>
                             </form>
                         </td>
                     </tr>

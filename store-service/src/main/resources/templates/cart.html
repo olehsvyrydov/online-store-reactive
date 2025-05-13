@@ -38,10 +38,10 @@
                 <tr>
                     <td>
                         <form th:action="${'/cart/items/'+itemModel.getId()}" method="post">
-                            <button name="action" value="minus">-</button>
+                            <button name="action" value="MINUS">-</button>
                             <span th:text="${itemModel.getCount()}"></span>
-                            <button name="action" value="plus">+</button>
-                            <button name="action" value="delete" style="float:right;">&cross;</button>
+                            <button name="action" value="PLUS">+</button>
+                            <button name="action" value="DELETE" style="float:right;">&cross;</button>
                         </form>
                     </td>
                 </tr>
@@ -50,7 +50,7 @@
     </tr>
     <tr>
         <td style="text-align:right">
-            <b th:text="'Итого: '+${total}+' руб.'"></b>
+            <b th:text="'Итого: '+${#numbers.formatDecimal(total,2,2)}+' руб.'"></b>
         </td>
     </tr>
     <tr>

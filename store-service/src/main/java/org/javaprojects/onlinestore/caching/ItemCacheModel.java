@@ -8,6 +8,23 @@
 // */
 //package org.javaprojects.onlinestore.caching;
 //
-//public interface AllItemsCacheRepository
+//import org.springframework.data.annotation.Id;
+//import org.springframework.data.redis.core.RedisHash;
+//import org.springframework.data.redis.core.index.Indexed;
+//
+//@RedisHash(
+//    value = "allItems",
+//    timeToLive = 60L
+//)
+//public record ItemCacheModel(
+//    @Id
+//    Long id,
+//    @Indexed
+//    String title,
+//    @Indexed
+//    String description,
+//
+//)
 //{
+//
 //}

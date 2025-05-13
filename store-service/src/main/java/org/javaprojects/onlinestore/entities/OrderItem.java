@@ -13,7 +13,7 @@ public class OrderItem {
     @Transient
     private Order order;
 
-    private int quantity;
+    private long quantity;
 
     public Long getOrderId()
     {
@@ -59,12 +59,12 @@ public class OrderItem {
         return this;
     }
 
-    public int getQuantity()
+    public long getQuantity()
     {
         return quantity;
     }
 
-    public OrderItem setQuantity(int quantity)
+    public OrderItem setQuantity(long quantity)
     {
         this.quantity = quantity;
         return this;

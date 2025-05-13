@@ -42,7 +42,7 @@
                         <b th:text="${itemModel.getCount()}+' шт.'"></b>
                     </td>
                     <td>
-                        <b th:text="${itemModel.getPrice()*itemModel.getCount()}+' руб.'"></b>
+                        <b th:text="${#numbers.formatDecimal(itemModel.getPrice()*itemModel.getCount(),2,2)}+' руб.'"></b>
                     </td>
                 </tr>
             </table>

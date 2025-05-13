@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
@@ -28,10 +29,16 @@ class ItemsControllerTest extends RedisTestContainer
     @MockitoSpyBean
     private ItemsRepository repo;
 
+    @Autowired
+    ReactiveRedisConnectionFactory cf;
+    Item entity = new Item(1L, "Test Title1", "Test Description1",
+        BigDecimal.valueOf(19.99), "test-path1.jpg", 1L);
     @BeforeEach
-    void setUp() {
-        Item item1 = new Item(1L, "Test Title1", "Test Description1", new BigDecimal("19.99"), "test-path1.jpg", 1);
-        repo.save(item1).block();
+    void setUp()
+    {
+        // start with an empty cache so first request must hit the DB
+        cf.getReactiveConnection().serverCommands().flushAll().block();
+        repo.save(entity).block();
     }
 
     @Test

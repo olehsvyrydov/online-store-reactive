@@ -8,6 +8,9 @@
  */
 package org.javaprojects.onlinestore.configurations;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.javaprojects.onlinestore.models.ItemModel;
 import org.springframework.boot.autoconfigure.cache.RedisCacheManagerBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
@@ -26,8 +29,16 @@ import java.time.Duration;
 public class ApplicationConfiguration {
 
     @Bean
-    public ReactiveRedisTemplate<String, Object> reactiveRedisTemplate(ReactiveRedisConnectionFactory factory) {
-        RedisSerializer<Object> serializer = new GenericJackson2JsonRedisSerializer();
+    ObjectMapper objectMapper() {
+        return new ObjectMapper()
+            .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
+            .enable(JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN);
+    }
+
+    @Bean
+    public ReactiveRedisTemplate<String, Object> reactiveRedisTemplate(ReactiveRedisConnectionFactory factory
+        , ObjectMapper objectMapper) {
+        RedisSerializer<Object> serializer = new GenericJackson2JsonRedisSerializer(objectMapper);
         RedisSerializationContext.RedisSerializationContextBuilder<String, Object> builder =
             RedisSerializationContext.newSerializationContext(new StringRedisSerializer());
 
@@ -39,8 +50,8 @@ public class ApplicationConfiguration {
     }
 
     @Bean
-    public RedisCacheManager cacheManager(RedisConnectionFactory cf) {
-        RedisSerializer<Object> json = new GenericJackson2JsonRedisSerializer();
+    public RedisCacheManager cacheManager(RedisConnectionFactory cf, ObjectMapper objectMapper) {
+        RedisSerializer<Object> json = new GenericJackson2JsonRedisSerializer(objectMapper);
         RedisSerializationContext.SerializationPair<Object> pair =
             RedisSerializationContext.SerializationPair.fromSerializer(json);
 
@@ -52,28 +63,29 @@ public class ApplicationConfiguration {
     }
 
     @Bean
-    public RedisCacheManagerBuilderCustomizer redisCacheManagerBuilderCustomizer() {
+    public RedisCacheManagerBuilderCustomizer redisCacheManagerBuilderCustomizer(ObjectMapper objectMapper) {
         return builder -> builder
             .withCacheConfiguration("items",
                 RedisCacheConfiguration.defaultCacheConfig()
                     .entryTtl(Duration.ofMinutes(10))
                     .serializeValuesWith(
                         RedisSerializationContext.SerializationPair.fromSerializer(
-                            new Jackson2JsonRedisSerializer<>(ItemModel.class))
+                            new GenericJackson2JsonRedisSerializer(objectMapper))
             ))
             .withCacheConfiguration("allItems",
                 RedisCacheConfiguration.defaultCacheConfig()
                     .entryTtl(Duration.ofMinutes(1))
                     .serializeValuesWith(
                         RedisSerializationContext.SerializationPair.fromSerializer(
-                            new GenericJackson2JsonRedisSerializer())
+                            new GenericJackson2JsonRedisSerializer(objectMapper))
             ))
             .withCacheConfiguration("itemsSize",
                 RedisCacheConfiguration.defaultCacheConfig()
                     .entryTtl(Duration.ofMinutes(10))
                     .serializeValuesWith(
                         RedisSerializationContext.SerializationPair.fromSerializer(
-                            new GenericJackson2JsonRedisSerializer())
+                            new GenericJackson2JsonRedisSerializer(objectMapper))
             ));
     }
+
 }

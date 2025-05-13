@@ -9,7 +9,6 @@ import org.javaprojects.onlinestore.models.*;
 import org.javaprojects.onlinestore.repositories.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
@@ -29,46 +28,50 @@ public class CatalogService {
     private final OrderItemRepository orderItemRepository;
     private final BalanceApi balanceApi;
     private final PaymentApi paymentApi;
+    private final CatalogRedisStore cache;
 
     public CatalogService(ItemsRepository itemRepository,
         OrdersRepository ordersRepository,
         CartRepository cartRepository,
         OrderItemRepository orderItemRepository,
         BalanceApi balanceApi,
-        PaymentApi paymentApi) {
+        PaymentApi paymentApi,
+        CatalogRedisStore cache) {
         this.itemRepository = itemRepository;
         this.ordersRepository = ordersRepository;
         this.cartRepository = cartRepository;
         this.orderItemRepository = orderItemRepository;
         this.balanceApi = balanceApi;
         this.paymentApi = paymentApi;
+        this.cache = cache;
     }
 
-    @Cacheable(
-        value = "allItems",
-        key = "{#pageNumber, #pageSize, #searchString, #sorting}",
-        unless = "#result == null || #result.isEmpty()")
-    public Mono<List<ItemModel>> findAllItems(int pageNumber, int pageSize, String searchString, Sorting sorting) {
+    public Flux<ItemModel> findAllItems(int pageNumber, int pageSize, String searchString, Sorting sorting) {
         Sort sorted = switch (sorting) {
             case NO -> Sort.unsorted();
             case PRICE -> Sort.by("price").ascending();
             case ALPHA -> Sort.by("title").ascending();
         };
         Pageable pageable = PageRequest.of(pageNumber, pageSize, sorted);
-        Flux<Item> page = searchString.isEmpty()
-            ? itemRepository.findBy(pageable)
-            : itemRepository.findBySearchString(searchString, pageable);
 
-        return page
-            .map(i -> new ItemModel(
-                i.getId(),
-                i.getTitle(),
-                i.getDescription(),
-                i.getPrice(),
-                i.getImgPath(),
-                i.getCount())
-            )
-            .collectList();
+        return cache.findPage(pageNumber, pageSize, searchString, sorting)
+            .switchIfEmpty((searchString.isBlank()
+                    ? itemRepository.findBy(pageable)
+                    : itemRepository.findBySearchString(searchString, pageable))
+
+            .map(item -> {
+                log.debug("findAllItems. Processed item. Title: {}", item.getTitle());
+                return toModel(item, item.getCount());
+            })
+                .flatMap(itemModel ->
+                    cache.save(itemModel)
+                        .thenReturn(itemModel)
+            ));
+    }
+
+    private ItemModel toModel(Item e, long count) {
+        return new ItemModel(e.getId(), e.getTitle(), e.getDescription(),
+            e.getPrice(), e.getImgPath(), count);
     }
 
     @Cacheable(value = "itemsSize", key = "'total'")
@@ -77,43 +80,41 @@ public class CatalogService {
         return itemRepository.count();
     }
 
-    @Cacheable(value = "items", key = "#id")
-    public Mono<ItemModel> getItemById(Long id) {
-        return itemRepository.findById(id)
-            .switchIfEmpty(Mono.error(new IllegalStateException("Item not found")))
-            .map(item -> new ItemModel(
-                item.getId(),
-                item.getTitle(),
-                item.getDescription(),
-                item.getPrice(),
-                item.getImgPath(),
-                item.getCount()));
+    public Mono<ItemModel> getItemById(long id) {
+        return cache.findById(id)
+            .switchIfEmpty(Mono.defer(() ->
+                itemRepository.findById(id)
+                    .switchIfEmpty(Mono.error(new IllegalStateException("Item not found")))
+                    .map(item -> toModel(item, item.getCount()))
+                    .flatMap(m -> cache.save(m).thenReturn(m))
+            ));
     }
 
-    @CacheEvict(value = "items", key = "#itemId")
     public Mono<Void> incrementQuantity(Long itemId) {
         return cartRepository.findByItemId(itemId)
             .switchIfEmpty(cartRepository.insertToCart(itemId))
             .then(cartRepository.incrementItemCount(itemId))
+            .then(cache.incrementCount(itemId))
             .then();
     }
 
-    @CacheEvict(value = "items", key = "#itemId")
     public Mono<Void> decrementQuantity(Long itemId) {
         return cartRepository.decrementItemCount(itemId)
             .flatMap(item -> {
+                log.debug("Decrement count for item id: {}, title: {}, count: {}",
+                    item.getId(), item.getTitle(), item.getCount());
                 if (item.getCount() <= 0) {
-                    return cartRepository.removeFromCart(itemId);
+                    return deleteItemFromBasket(itemId);
                 }
-                return Mono.empty();
+                return cache.decrementCount(itemId).then();
             })
             .then();
     }
 
-    @CacheEvict(value = "items", key = "#itemId")
     public Mono<Void> deleteItemFromBasket(Long itemId) {
         return cartRepository.removeFromCart(itemId)
             .then(cartRepository.resetItemCount(itemId))
+            .then(cache.resetCountValue(itemId))
             .then();
     }
 
@@ -133,7 +134,7 @@ public class CatalogService {
     @Transactional
     public Mono<Void> updateCountInBasket(Long id, String action) {
         return switch (action.toUpperCase()) {
-            case "PLUS" -> incrementQuantity(id);
+            case "PLUS", "ADD_TO_CART" -> incrementQuantity(id);
             case "MINUS" -> decrementQuantity(id);
             case "DELETE" -> deleteItemFromBasket(id);
             default -> Mono.error(new IllegalStateException("Invalid action: " + action));
@@ -241,8 +242,8 @@ public class CatalogService {
                         return orderItemRepository.saveAll(orderItems)
                             .flatMap(orderItem -> {
                                 Item item = orderItem.getItem();
-                                item.setCount(0);
-                                return itemRepository.save(item);
+                                item.setCount(0L);
+                                return itemRepository.save(item).flatMap(i -> cache.save(toModel(item, 0)));
                             })
                             .then(cartRepository.deleteAll())
                             .thenReturn(savedOrder.getId());

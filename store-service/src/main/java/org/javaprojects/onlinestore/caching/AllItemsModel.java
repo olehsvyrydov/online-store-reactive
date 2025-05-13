@@ -8,6 +8,17 @@
 // */
 //package org.javaprojects.onlinestore.caching;
 //
-//public interface AllItemsCacheRepository
+//import org.springframework.data.redis.core.RedisHash;
+//
+//import java.util.Set;
+//
+//@RedisHash(
+//    value = "allItems",
+//    timeToLive = 60L
+//)
+//public record AllItemsModel(
+//    Set<ItemCacheModel> items
+//)
 //{
+//
 //}

@@ -55,13 +55,14 @@ public class CatalogController {
             Model model) {
 
         return catalogService.findAllItems(pageNumber, pageSize, searchString, sorting)
+            .collectList()
             .zipWith(catalogService.getItemsCount())
             .map(tuple -> {
                 List<ItemModel> items = tuple.getT1();
                 // cache does not keep the long value, so we need to cast to Number at first then take a long value.
-                long total = ((Number) tuple.getT2()).longValue();
+                long totalPages = ((Number) tuple.getT2()).longValue();
                 PageRequest pageable = PageRequest.of(pageNumber, pageSize);
-                PageImpl<ItemModel> page = new PageImpl<>(items, pageable, total);
+                PageImpl<ItemModel> page = new PageImpl<>(items, pageable, totalPages);
 
                 return new AllItemsModel(items, new Paging(
                     pageNumber,
@@ -74,7 +75,7 @@ public class CatalogController {
                 model.addAttribute("items", allItemsModel.getProductList());
                 model.addAttribute("paging", allItemsModel.getPaging());
                 model.addAttribute("search", searchString);
-                model.addAttribute("sort", sorting);
+                model.addAttribute("sort", sorting.name());
             })
             .then(Mono.just("main"));
     }

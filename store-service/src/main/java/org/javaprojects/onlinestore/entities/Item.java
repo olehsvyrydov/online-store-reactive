@@ -14,11 +14,11 @@ public class Item {
     private String description;
     private BigDecimal price;
     private String imgPath;
-    private Integer count = 0;
+    private Long count = 0L;
 
     public Item() {}
 
-    public Item(Long id, String title, String description, BigDecimal price, String imgPath, int count) {
+    public Item(Long id, String title, String description, BigDecimal price, String imgPath, Long count) {
         this.id = id;
         this.title = title;
         this.description = description;
@@ -63,11 +63,11 @@ public class Item {
         return imgPath;
     }
 
-    public Integer getCount() {
+    public Long getCount() {
         return count != null ? count : 0;
     }
 
-    public void setCount(Integer count) {
+    public void setCount(Long count) {
         this.count = count;
     }
     @Override
