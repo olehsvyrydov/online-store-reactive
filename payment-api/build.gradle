@@ -1,0 +1,74 @@
+import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
+
+plugins {
+    id 'org.openapi.generator' version '7.12.0'
+}
+
+openApiGenerate {
+    generatorName       .set('spring')
+    inputSpec           .set("$projectDir/src/main/resources/api-spec.yaml")
+    outputDir           .set("$projectDir/generated")
+
+    ignoreFileOverride  .set(".openapi-generator-java-sources.ignore")
+
+    apiPackage          .set('org.javaprojects.payment.controllers')
+    modelPackage        .set('org.javaprojects.payment.dtos')
+//    invokerPackage .set('org.javaprojects.payment.services')
+
+    configOptions.set([
+            hideGenerationTimestamp: "true",
+            requestMappingMode: "controller",
+            interfaceOnly: "false",
+            library: "spring-boot",
+            reactive: "true",
+            useSpringBoot3: "true",
+            useJakartaEe: "true",
+            useTags: "true",
+            dateLibrary: "java8",
+            openApiNullable: "false",
+            serializableModel: "true",
+            returnSuccessCode: "true"
+    ])
+}
+
+tasks.register('buildClient', GenerateTask) {
+    generatorName       .set("java")
+    inputSpec           .set("$projectDir/src/main/resources/api-spec.yaml")
+    outputDir           .set("$projectDir/generated")
+
+    ignoreFileOverride  .set(".openapi-generator-java-sources.ignore")
+
+    modelPackage        .set('org.javaprojects.onlinestore.models')
+    invokerPackage      .set('org.javaprojects.onlinestore.client')
+    apiPackage          .set('org.javaprojects.onlinestore.api')
+    configOptions.set([
+            hideGenerationTimestamp: "true",
+            library                : "webclient",
+            useJakartaEe           : "true",
+            useTags                : "true",
+            openApiNullable        : "false",
+            serializableModel      : "true"
+    ])
+}
+
+sourceSets.main.java.srcDir "$projectDir/build/generated/src/main/java"
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-validation:3.4.5'
+    implementation 'org.springframework.boot:spring-boot-starter-webflux:3.4.5'
+    implementation 'io.swagger.core.v3:swagger-annotations-jakarta:2.2.20'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5'
+    implementation 'org.openapitools:jackson-databind-nullable:0.2.6'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test:3.4.5'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.9.3'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+tasks.named('compileJava') {
+    // dependsOn([tasks.openApiGenerate, tasks.buildClient]) - вот так, если нужно опираться на обе задачи
+    dependsOn(tasks.openApiGenerate)
+}

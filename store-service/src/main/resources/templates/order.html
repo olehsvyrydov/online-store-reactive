@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <title>Заказ</title>
+</head>
+
+<body>
+<div style="width:70%;margin-left: auto;margin-right: auto;">
+<a href="/orders" style="float:right;">
+    <b>ЗАКАЗЫ &cudarrr;</b>
+</a>
+<a href="/cart/items" style="float:right;">
+    <b>КОРЗИНА &cudarrr;</b>
+</a>
+<a href="/main/items" style="float:right;">
+    <b>ГЛАВНАЯ &cudarrr;</b>
+</a>
+<h1 style="text-align:center" th:if="${newOrder}">Поздравляем! Успешная покупка! &#128578;</h1>
+<table style="width:70%;margin-left:auto;margin-right:auto;">
+    <tr>
+        <td>
+            <h2 th:text="${'Заказ №'+order.getId()}"></h2>
+        </td>
+    </tr>
+    <tr th:each="itemModel : ${order.getItems()}">
+        <td>
+            <table>
+                <tr>
+                    <td>
+                        <a th:href="${'/items/'+itemModel.getId()}">
+                            <img width="300" height="300" th:src="${itemModel.getImgPath()}">
+                        </a>
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <b th:text="${itemModel.getTitle()}"></b>
+                    </td>
+                    <td>
+                        <b th:text="${itemModel.getCount()}+' шт.'"></b>
+                    </td>
+                    <td>
+                        <b th:text="${#numbers.formatDecimal(itemModel.getPrice()*itemModel.getCount(),2,2)}+' руб.'"></b>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+    <tr>
+        <td>
+            <h3 th:text="${'Сумма: '+order.getTotalSum()}+' руб.'"></h3>
+        </td>
+    </tr>
+</table>
+</div>
+</body>
+
+</html>
