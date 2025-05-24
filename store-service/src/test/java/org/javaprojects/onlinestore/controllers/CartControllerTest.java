@@ -15,6 +15,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import org.springframework.security.test.context.support.WithMockUser;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -25,9 +26,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 
+
 @ActiveProfiles("test")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureWebTestClient
+@WithMockUser(username = "test", roles = {"ROLE_USER"})
 class CartControllerTest extends RedisTestContainer
 {
     @Autowired
@@ -45,10 +48,7 @@ class CartControllerTest extends RedisTestContainer
         Flux<Cart> cartFlux = Flux.fromIterable(List.of(cart1, cart2));
 
         when(cartRepository.removeFromCart(anyLong())).thenReturn(Mono.empty());
-        when(cartRepository.resetItemCount(anyLong())).thenReturn(Mono.empty());
-        when(cartRepository.decrementItemCount(anyLong())).thenReturn(Mono.empty());
-        when(cartRepository.incrementItemCount(anyLong())).thenReturn(Mono.empty());
-        when(cartRepository.findByItemId(anyLong())).thenReturn(Mono.just(cart1));
+        when(cartRepository.findByItemIdAndUserId(anyLong())).thenReturn(Mono.just(cart1));
         when(itemRepository.findById(anyLong())).thenReturn(Mono.just(item1));
         when(cartRepository.insertToCart(anyLong())).thenReturn(Mono.empty());
         when(cartRepository.findAll()).thenReturn(cartFlux);
@@ -103,6 +103,6 @@ class CartControllerTest extends RedisTestContainer
                 .exchange()
                 .expectStatus().is3xxRedirection()
                 .expectHeader().location("/cart/items");
-        verify(cartRepository).removeFromCart(1L);
+        verify(cartRepository).removeFromCart(1L, 1L);
     }
 }

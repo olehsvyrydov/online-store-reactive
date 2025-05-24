@@ -11,6 +11,8 @@ import reactor.core.publisher.Mono;
 
 import java.util.List;
 
+import static org.javaprojects.onlinestore.utils.SecurityUtil.currentUser;
+
 /**
  * This class is used to handle all requests related to the orders of items.
  * It contains methods to get all orders, get order by id and buy items in the basket.
@@ -61,7 +63,7 @@ public class OrdersController {
      */
     @PostMapping("/buy")
     public Mono<String> buy() {
-        return catalogService.buyItemsInBasket()
+        return currentUser().flatMap(catalogService::buyItemsInBasket)
             .map(id -> "redirect:/orders/" + id + "?newOrder=true");
     }
 }

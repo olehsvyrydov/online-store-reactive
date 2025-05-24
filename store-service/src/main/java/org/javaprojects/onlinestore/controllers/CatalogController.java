@@ -8,6 +8,7 @@ import org.javaprojects.onlinestore.models.Paging;
 import org.javaprojects.onlinestore.services.CatalogService;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -86,6 +87,7 @@ public class CatalogController {
      * @param action action to be performed on the item
      * @return redirect to the item page
      */
+    @PreAuthorize("!hasRole('ROLE_ANONIMOUS')")
     @PostMapping(value = "/main/items/{id}")
     public Mono<String> updateItemsCountInBasket(
         @PathVariable("id") Long id,

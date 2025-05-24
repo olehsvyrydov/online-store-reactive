@@ -1,5 +1,7 @@
 package org.javaprojects.onlinestore.services;
 
+import org.javaprojects.onlinestore.entities.Cart;
+import org.javaprojects.onlinestore.entities.Item;
 import org.javaprojects.onlinestore.enums.Sorting;
 import org.javaprojects.onlinestore.models.ItemModel;
 import org.slf4j.Logger;
@@ -20,86 +22,106 @@ import java.util.stream.Collectors;
 @Component
 public class CatalogRedisStore {
     private static final Logger log = LoggerFactory.getLogger(CatalogRedisStore.class);
-    private static final String KEY_ITEM   = "item:%d";
-    private static final String Z_PRICE    = "z:price";
-    private static final String Z_TITLE    = "z:title";
-    private static final String ID          = "id";
-    private static final String TITLE       = "title";
-    private static final String DESCRIPTION = "description";
-    private static final String PRICE       = "price";
-    private static final String IMG         = "img";
-    private static final String COUNT       = "count";
-    public static final char KEY_DELIMITER  = '|';
+    private static final String KEY_ITEM        = "item:%d";
+    private static final String Z_PRICE         = "z:price";
+    private static final String Z_TITLE         = "z:title";
+    private static final String ID              = "id";
+    private static final String TITLE           = "title";
+    private static final String DESCRIPTION     = "description";
+    private static final String PRICE           = "price";
+    private static final String IMG             = "img";
+    private static final String COUNT           = "count";
+    private static final String KEY_CART_COUNT  = "count:%d:%d";
+    public static final char KEY_DELIMITER      = '|';
 
     private final ReactiveRedisTemplate<String, String> redis;
+    private final CacheLoader cacheLoader;
 
-    public CatalogRedisStore(ReactiveRedisTemplate<String, String> redis)
+    public CatalogRedisStore(ReactiveRedisTemplate<String, String> redis, CacheLoader loader)
     {
         this.redis = redis;
+        this.cacheLoader = loader;
     }
 
-    public Mono<Void> save(ItemModel itemModel) {
-        String key = key(itemModel.getId());
-        log.debug("saving item to cache. Key: {}, Title: {}", key, itemModel.getTitle());
-
-        Map<String, String> map = Map.of(
-            ID,          String.valueOf(itemModel.getId()),
-            TITLE,       itemModel.getTitle(),
-            DESCRIPTION, itemModel.getDescription(),
-            PRICE,       itemModel.getPrice().toPlainString(),
-            IMG,         itemModel.getImgPath(),
-            COUNT,       String.valueOf(itemModel.getCount())
-        );
-
-        return redis.opsForHash().putAll(key, map)
-            .doOnNext(__ -> log.info("► HSET done for {}", key))
-            .then(redis.opsForZSet().add(Z_PRICE, String.valueOf(itemModel.getId()), itemModel.getPrice().doubleValue()))
-            .then(redis.opsForZSet().add(Z_TITLE, itemModel.getTitle() + KEY_DELIMITER + itemModel.getId(), 0))
-            .then();
+    public Mono<Void> save(Item item) {
+        return cacheLoader.save(item).then();
     }
 
-    public Mono<ItemModel> resetCountValue(long id) {
-        String key = key(id);
-        return redis.opsForHash()
-            .put(key, COUNT, "0")
-            .then(findById(id));
+    public Mono<Boolean> resetCountValue(long id, long userId) {
+        String key = cart_count_key(id, userId);
+        return redis.opsForValue()
+            .set(key, "0");
+//            .then(findById(id, userId));
     }
 
-    public Mono<ItemModel> increment(long id, long delta) {
-        String key = key(id);
-        return redis.opsForHash()
-            .increment(key, COUNT, delta)
-            .flatMap(newCount ->
-                redis.opsForHash().put(key, COUNT, newCount.toString()))
-            .then(findById(id));
+    public Mono<Long> increment(long id, long delta, long userId) {
+        String key = cart_count_key(id, userId);
+        return redis.opsForValue()
+            .increment(key, delta)
+                .flatMap(newValue -> {
+                    if (newValue <= 0) {
+                        log.debug("Item count is 0. Resetting the count for item ID: [{}]", id);
+                        return redis.opsForValue().set(key, "0")
+                            .thenReturn(0L);
+                    }
+                    log.debug("Item count is greater than 0. New value: [{}]", newValue);
+                    return redis.opsForValue().get(key)
+                        .map(Long::parseLong);
+                })
+            .flatMap(newValue -> cacheLoader.updateItemCount(id, userId, newValue))
+            .map(Cart::getQuantity);
     }
 
-    public Mono<ItemModel> incrementCount(long id) {
+    public Mono<Long> incrementCount(long id, long userId) {
         log.debug("Incrementing the count of item. ID: [{}]", id);
-        return increment(id, 1L);
+        return increment(id, 1L, userId);
+//            .then(findById(id, userId));
     }
 
-    public Mono<ItemModel> decrementCount(long id) {
+    public Mono<Long> decrementCount(long id, long userId) {
         log.debug("Decrementing the count of item. ID: [{}]", id);
-        return increment(id, -1L);
+        return increment(id, -1L, userId);
+//            .onErrorComplete()
+//            .then(findById(id, userId));
     }
 
-    public Mono<ItemModel> findById(long id) {
+    public Mono<ItemModel> findById(long id, long userId) {
         return redis.<String, String>opsForHash()
-            .entries(key(id))
+            .entries(item_key(id))
             .collectMap(Map.Entry::getKey, Map.Entry::getValue)
+            .flatMap(map -> {
+                if (map.isEmpty()) {
+                    log.debug("Item not found in cache. Loading from DB. ID: {}", id);
+                    return cacheLoader.loadItem(id);
+                }
+                log.debug("Item found in cache. ID: {}", id);
+                return Mono.just(map);
+            })
+            .flatMap(map ->
+                findCountForItem(id, userId)
+                    .doOnNext(quantity -> map.put(COUNT, quantity))
+                    .thenReturn(map))
             .filter(map -> !map.isEmpty())
             .map(this::toItemModel);
     }
 
-    public Flux<ItemModel> findPage(int page, int size, String search, Sorting sort) {
+    public Flux<ItemModel> findPage(int page, int size, String search, Sorting sort, long userId) {
         Mono<List<Long>> idsMono = switch (sort) {
             case PRICE, NO -> idsByPrice(page, size);
             case ALPHA -> idsByTitle(page, size);
         };
-        log.debug("Find by page: Sorting: {}", sort);
-        return idsMono.flatMapMany(Flux::fromIterable)
-            .flatMap(this::findById)
+        return idsMono
+            .flatMap(list -> {
+                if (list.isEmpty()) {
+                    log.debug("No items found for page: {}, size: {}, search: {}, sort: {}, They will be loaded", page, size, search, sort);
+                    return cacheLoader.loadPages(page, size, search, sort);
+                }
+                log.debug("Items in cache: {}", list);
+                return Mono.just(list);
+            })
+            .flatMapMany(Flux::fromIterable)
+            .doOnNext(i -> log.debug("Item ID is going to be mapped: {}", i))
+            .flatMap(i -> findById(i, userId))
             .filter(i -> matches(i, search));
     }
 
@@ -135,8 +157,12 @@ public class CatalogRedisStore {
                 member.substring(member.lastIndexOf(KEY_DELIMITER) + 1)))
             .collect(Collectors.toList());
     }
-    private String key(long id) {
-        return KEY_ITEM.formatted(id);
+    private String item_key(long itemId) {
+        return KEY_ITEM.formatted(itemId);
+    }
+
+    private String cart_count_key(long itemId, long userId) {
+        return KEY_CART_COUNT.formatted(itemId, userId);
     }
 
     private boolean matches(ItemModel i, String q) {
@@ -154,7 +180,12 @@ public class CatalogRedisStore {
         m.computeIfPresent(PRICE, (k,v) -> {itemModel.setPrice(BigDecimal.valueOf(Float.parseFloat(v))); return v;});
         m.computeIfPresent(IMG, (k,v) -> {itemModel.setImgPath(v); return v;});
         m.computeIfPresent(COUNT, (k,v) -> {itemModel.setCount(Integer.parseInt(v)); return v;});
-
+        log.debug("Item map updated to ItemModel with id: {}", itemModel.getId());
         return itemModel;
+    }
+
+    public Mono<String> findCountForItem(Long itemId, Long userId)
+    {
+        return cacheLoader.getQuantity(itemId, userId);
     }
 }

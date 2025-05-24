@@ -2,6 +2,7 @@ package org.javaprojects.onlinestore.controllers;
 
 import org.javaprojects.onlinestore.enums.Action;
 import org.javaprojects.onlinestore.services.CatalogService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +22,7 @@ public class ItemsController {
      * @param model model
      * @return cart.html
      */
+    @PreAuthorize("!hasRole('ROLE_ANONIMOUS')")
     @GetMapping("/items/{id}")
     public Mono<String> getItemById(
             @PathVariable("id") Long id,
@@ -36,6 +38,7 @@ public class ItemsController {
      * @param action action to be performed on the item
      * @return redirect to the item page
      */
+    @PreAuthorize("!hasRole('ROLE_ANONIMOUS')")
     @PostMapping("/items/{id}")
     public Mono<String> updateItemsCountInBasket(
             @PathVariable("id") Long id,

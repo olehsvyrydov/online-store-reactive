@@ -1,5 +1,6 @@
 package org.javaprojects.onlinestore.controllers;
 
+import org.javaprojects.onlinestore.entities.AppUser;
 import org.javaprojects.onlinestore.entities.Item;
 import org.javaprojects.onlinestore.models.ItemModel;
 import org.javaprojects.onlinestore.models.OrderModel;
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -24,6 +26,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 @ActiveProfiles("test")
 @WebFluxTest(controllers = OrdersController.class)
 @ContextConfiguration(classes = {OrdersController.class})
+@WithMockUser
 class OrdersControllerTest {
     @Autowired
     private WebTestClient webTestClient;
@@ -66,7 +69,8 @@ class OrdersControllerTest {
 
     @Test
     void buy() {
-        Mockito.when(catalogService.buyItemsInBasket()).thenReturn(Mono.just(1L));
+        AppUser user = new AppUser(1L, "test", "password", true, List.of("ROLE_USER"));
+        Mockito.when(catalogService.buyItemsInBasket(user)).thenReturn(Mono.just(1L));
         webTestClient.post()
                 .uri("/buy")
                 .exchange()

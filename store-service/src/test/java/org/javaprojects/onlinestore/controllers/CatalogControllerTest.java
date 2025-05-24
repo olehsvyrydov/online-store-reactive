@@ -1,5 +1,6 @@
 package org.javaprojects.onlinestore.controllers;
 
+import org.javaprojects.onlinestore.entities.AppUser;
 import org.javaprojects.onlinestore.enums.Sorting;
 import org.javaprojects.onlinestore.models.ItemModel;
 import org.javaprojects.onlinestore.services.CatalogService;
@@ -8,6 +9,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -26,6 +28,7 @@ import static org.mockito.Mockito.when;
 @ActiveProfiles("test")
 @WebFluxTest(controllers = CatalogController.class)
 @ContextConfiguration(classes = {CatalogController.class})
+@WithMockUser
 class CatalogControllerTest {
     @Autowired
     private WebTestClient webTestClient;
@@ -64,7 +67,7 @@ class CatalogControllerTest {
     @ParameterizedTest
     @ValueSource(strings = {"PLUS","MINUS","DELETE"})
     void updateItemsCountInBasket_PlusItem(String action) {
-        when(catalogService.updateCountInBasket(anyLong(), eq(action))).thenReturn(Mono.empty());
+        when(catalogService.updateCountInBasket(anyLong(), eq(action), any(Mono.class))).thenReturn(Mono.empty());
         webTestClient.post().uri(uriBuilder -> uriBuilder
                 .path("/main/items/1")
                 .queryParam("action", action)

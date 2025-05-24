@@ -1,6 +1,7 @@
 package org.javaprojects.onlinestore.services;
 
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
+import org.javaprojects.onlinestore.entities.AppUser;
 import org.javaprojects.onlinestore.entities.Item;
 import org.javaprojects.onlinestore.helpers.RedisTestContainer;
 import org.javaprojects.onlinestore.repositories.ItemsRepository;
@@ -10,10 +11,13 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.util.Objects;
@@ -24,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @ActiveProfiles("test")
 @SpringBootTest
+@WithMockUser
 class CatalogServiceTest extends RedisTestContainer
 {
 
@@ -71,7 +76,8 @@ class CatalogServiceTest extends RedisTestContainer
     }
 
     @Test
-    void buyItemsInBasket() {
+    @WithMockUser(username = "test", roles = {"ROLE_USER"})
+    void buyItemsInBasket(@AuthenticationPrincipal Mono<AppUser> appUser) {
         wireMockServer.stubFor(get(urlPathEqualTo("/balance"))
             .willReturn(aResponse()
                 .withHeader("Content-Type", "application/json")
@@ -83,14 +89,14 @@ class CatalogServiceTest extends RedisTestContainer
                 .withBody("{\"success\":true,\"error\":null, \"currentBalance\":100.0}")
                 .withStatus(200)));
         itemsRepository.findBySearchString("Smartphone", PageRequest.of(0, 10))
-            .flatMap(item -> catalogService.incrementQuantity(item.getId())).then().block();
+            .flatMap(item -> catalogService.incrementQuantity(item.getId(), appUser)).then().block();
         itemsRepository.findBySearchString("laptop", PageRequest.of(0, 10))
             .flatMap(item ->
-                catalogService.incrementQuantity(item.getId())
-                    .then(catalogService.incrementQuantity(item.getId()))
+                catalogService.incrementQuantity(item.getId(), appUser)
+                    .then(catalogService.incrementQuantity(item.getId(), appUser))
             )
             .then().block();
-        Long id = catalogService.buyItemsInBasket().block();
+        Long id = appUser.flatMap(user -> catalogService.buyItemsInBasket(user)).block();
         assertEquals(3098.99, Objects.requireNonNull(catalogService.getOrderById(id).block()).getTotalSum().doubleValue());
     }
 }
