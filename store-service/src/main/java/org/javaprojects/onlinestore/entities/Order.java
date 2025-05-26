@@ -20,16 +20,18 @@ public class Order {
         return id;
     }
 
-    public void setId(Long id) {
+    public Order setId(Long id) {
         this.id = id;
+        return this;
     }
 
     public BigDecimal getTotal() {
         return total;
     }
 
-    public void setTotal(BigDecimal total) {
+    public Order setTotal(BigDecimal total) {
         this.total = total;
+        return this;
     }
 
     public Long getUserId()

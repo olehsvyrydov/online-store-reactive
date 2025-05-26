@@ -1,10 +1,10 @@
-INSERT INTO app_user (username, password, enabled, role) VALUES
+INSERT INTO app_user (username, password, enabled, roles) VALUES
 ('admin',
 '{bcrypt}$2a$10$1PoMl1vMSoPDnhtJSAjW3utizMecIGGyrOwjL0AEK1ckNLDGKt5vG', -- password
 TRUE,
 ARRAY['ROLE_ADMIN']
 ),
-('123',
+('test',
  '{bcrypt}$2a$10$wOYmQcE/gY3yYlhc2xdmc.rd4G0Pwlg24EKI65fFwmWf.1sWtgQB6', -- 123456789
  TRUE,
  ARRAY ['ROLE_USER']);

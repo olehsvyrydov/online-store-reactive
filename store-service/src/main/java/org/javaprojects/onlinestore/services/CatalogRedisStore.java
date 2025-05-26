@@ -1,9 +1,9 @@
 package org.javaprojects.onlinestore.services;
 
 import org.javaprojects.onlinestore.entities.Cart;
-import org.javaprojects.onlinestore.entities.Item;
 import org.javaprojects.onlinestore.enums.Sorting;
 import org.javaprojects.onlinestore.models.ItemModel;
+import org.javaprojects.onlinestore.security.AuthUser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Range;
@@ -15,10 +15,16 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
-import java.util.List;
+import java.nio.file.attribute.UserPrincipalNotFoundException;
 import java.util.Map;
-import java.util.stream.Collectors;
 
+import static org.javaprojects.onlinestore.security.SecurityUtil.*;
+
+/**
+ * This class is responsible for managing the catalog of items in the online store.
+ * It provides methods to find items by ID, increment and decrement item counts,
+ * and retrieve paginated lists of items with sorting and searching capabilities.
+ */
 @Component
 public class CatalogRedisStore {
     private static final Logger log = LoggerFactory.getLogger(CatalogRedisStore.class);
@@ -43,19 +49,28 @@ public class CatalogRedisStore {
         this.cacheLoader = loader;
     }
 
-    public Mono<Void> save(Item item) {
-        return cacheLoader.save(item).then();
-    }
-
+    /**
+     * Resets the count of an item in the basket for a specific user to zero.
+     * @param id ID of the item to reset.
+     * @param userId ID of the user whose basket is being modified.
+     * @return Mono indicating completion of the operation.
+     */
     public Mono<Boolean> resetCountValue(long id, long userId) {
-        String key = cart_count_key(id, userId);
+        String key = cartCountKey(id, userId);
         return redis.opsForValue()
             .set(key, "0");
-//            .then(findById(id, userId));
     }
 
+    /**
+     * Increments the count of an item in the basket for a specific user.
+     * If the count goes below zero, it resets the count to zero.
+     * @param id ID of the item to increment.
+     * @param delta Amount to increment or decrement the count by.
+     * @param userId ID of the user whose basket is being modified.
+     * @return Mono containing the new count of the item in the basket.
+     */
     public Mono<Long> increment(long id, long delta, long userId) {
-        String key = cart_count_key(id, userId);
+        String key = cartCountKey(id, userId);
         return redis.opsForValue()
             .increment(key, delta)
                 .flatMap(newValue -> {
@@ -72,60 +87,70 @@ public class CatalogRedisStore {
             .map(Cart::getQuantity);
     }
 
+    /**
+     * Increments the count of an item in the basket for a specific user.
+     * @param id ID of the item to increment.
+     * @param userId ID of the user whose basket is being modified.
+     * @return Mono containing the new count of the item in the basket.
+     */
     public Mono<Long> incrementCount(long id, long userId) {
         log.debug("Incrementing the count of item. ID: [{}]", id);
         return increment(id, 1L, userId);
-//            .then(findById(id, userId));
     }
 
+    /**
+     * Decrements the count of an item in the basket for a specific user.
+     * If the count goes below zero, it resets the count to zero.
+     * @param id ID of the item to decrement.
+     * @param userId ID of the user whose basket is being modified.
+     * @return Mono containing the new count of the item in the basket.
+     */
     public Mono<Long> decrementCount(long id, long userId) {
         log.debug("Decrementing the count of item. ID: [{}]", id);
         return increment(id, -1L, userId);
-//            .onErrorComplete()
-//            .then(findById(id, userId));
     }
 
-    public Mono<ItemModel> findById(long id, long userId) {
+    /**
+     * Finds an item by its ID from Redis or loads it from the cache if not found.
+     * @param id ID of the item to find.
+     * @return Mono containing the ItemModel if found, or empty if not found.
+     */
+    public Mono<ItemModel> findById(long id) {
         return redis.<String, String>opsForHash()
-            .entries(item_key(id))
+            .entries(itemKey(id))
+            .switchIfEmpty(cacheLoader.loadItem(id))
             .collectMap(Map.Entry::getKey, Map.Entry::getValue)
-            .flatMap(map -> {
-                if (map.isEmpty()) {
-                    log.debug("Item not found in cache. Loading from DB. ID: {}", id);
-                    return cacheLoader.loadItem(id);
-                }
-                log.debug("Item found in cache. ID: {}", id);
-                return Mono.just(map);
-            })
-            .flatMap(map ->
-                findCountForItem(id, userId)
-                    .doOnNext(quantity -> map.put(COUNT, quantity))
-                    .thenReturn(map))
-            .filter(map -> !map.isEmpty())
+            .flatMap(map -> findCountForItem(id)
+                .doOnNext(quantity -> map.put(COUNT, quantity))
+                .thenReturn(map))
             .map(this::toItemModel);
     }
 
-    public Flux<ItemModel> findPage(int page, int size, String search, Sorting sort, long userId) {
-        Mono<List<Long>> idsMono = switch (sort) {
+    /**
+     * Finds all items in the catalog with pagination and sorting.
+     * @param page Page number to retrieve.
+     * @param size Number of items per page.
+     * @param search Search query to filter items.
+     * @param sort Sorting criteria for the items.
+     * @return Flux of ItemModel containing the items.
+     */
+    public Flux<ItemModel> findPage(int page, int size, String search, Sorting sort) {
+        Flux<Long> idsMono = switch (sort) {
             case PRICE, NO -> idsByPrice(page, size);
             case ALPHA -> idsByTitle(page, size);
         };
         return idsMono
-            .flatMap(list -> {
-                if (list.isEmpty()) {
-                    log.debug("No items found for page: {}, size: {}, search: {}, sort: {}, They will be loaded", page, size, search, sort);
-                    return cacheLoader.loadPages(page, size, search, sort);
-                }
-                log.debug("Items in cache: {}", list);
-                return Mono.just(list);
-            })
-            .flatMapMany(Flux::fromIterable)
+            .switchIfEmpty(cacheLoader.loadPages(page, size, search, sort))
             .doOnNext(i -> log.debug("Item ID is going to be mapped: {}", i))
-            .flatMap(i -> findById(i, userId))
+            .flatMap(this::findById)
             .filter(i -> matches(i, search));
     }
 
-    private Mono<List<Long>> idsByPrice(int page, int size) {
+    /**
+     * Retrieves the total count of items in the catalog.
+     * @return Mono containing the count of items.
+     */
+    private Flux<Long> idsByPrice(int page, int size) {
 
         long offset = (long) page * size;
 
@@ -137,11 +162,15 @@ public class CatalogRedisStore {
         log.debug("idsByPrice: Page offset: {}", offset);
         return redis.opsForZSet()
             .rangeByScore(Z_PRICE, all, limit)
-            .map(Long::parseLong)
-            .collect(Collectors.toList());
+            .map(Long::parseLong);
     }
-
-    private Mono<List<Long>> idsByTitle(int page, int size) {
+    /**
+     * Retrieves item IDs sorted by title from Redis.
+     * @param page Page number to retrieve.
+     * @param size Number of items per page.
+     * @return Flux of item IDs.
+     */
+    private Flux<Long> idsByTitle(int page, int size) {
 
         long offset = (long) page * size;
 
@@ -154,17 +183,33 @@ public class CatalogRedisStore {
         return redis.opsForZSet()
             .rangeByLex(Z_TITLE, all, limit)
             .map(member -> Long.parseLong(
-                member.substring(member.lastIndexOf(KEY_DELIMITER) + 1)))
-            .collect(Collectors.toList());
+                member.substring(member.lastIndexOf(KEY_DELIMITER) + 1)));
     }
-    private String item_key(long itemId) {
+    /**
+     * Constructs a Redis key for an item based on its ID.
+     * @param itemId ID of the item.
+     * @return Redis key as a String.
+     */
+    private String itemKey(long itemId) {
         return KEY_ITEM.formatted(itemId);
     }
 
-    private String cart_count_key(long itemId, long userId) {
+    /**
+     * Constructs a Redis key for the cart count of a specific item for a user.
+     * @param itemId ID of the item.
+     * @param userId ID of the user.
+     * @return Redis key as a String.
+     */
+    private String cartCountKey(long itemId, long userId) {
         return KEY_CART_COUNT.formatted(itemId, userId);
     }
 
+    /**
+     * Checks if the item matches the search query.
+     * @param i ItemModel to check.
+     * @param q Search query.
+     * @return true if the item matches the query, false otherwise.
+     */
     private boolean matches(ItemModel i, String q) {
         if (q.isBlank()) return true;
         String l = q.toLowerCase();
@@ -172,20 +217,48 @@ public class CatalogRedisStore {
             || i.getDescription().toLowerCase().contains(l);
     }
 
+    /**
+     * Converts a map of item properties to an ItemModel.
+     * @param m Map containing item properties.
+     * @return ItemModel constructed from the map.
+     */
     private ItemModel toItemModel(Map<String,String> m) {
-        ItemModel itemModel = new ItemModel();
-        m.computeIfPresent(ID, (k,v) -> {itemModel.setId(Long.parseLong(v)); return v;});
-        m.computeIfPresent(TITLE, (k,v) -> {itemModel.setTitle(v); return v;});
-        m.computeIfPresent(DESCRIPTION, (k,v) -> {itemModel.setDescription(v); return v;});
-        m.computeIfPresent(PRICE, (k,v) -> {itemModel.setPrice(BigDecimal.valueOf(Float.parseFloat(v))); return v;});
-        m.computeIfPresent(IMG, (k,v) -> {itemModel.setImgPath(v); return v;});
-        m.computeIfPresent(COUNT, (k,v) -> {itemModel.setCount(Integer.parseInt(v)); return v;});
-        log.debug("Item map updated to ItemModel with id: {}", itemModel.getId());
-        return itemModel;
+        return new ItemModel()
+            .setId     (Long.parseLong(m.get(ID)))
+            .setTitle  (m.get(TITLE))
+            .setDescription(m.get(DESCRIPTION))
+            .setPrice  (new BigDecimal(m.get(PRICE)))
+            .setImgPath(m.get(IMG))
+            .setCount  (Integer.parseInt(m.getOrDefault(COUNT, "0")));
     }
 
-    public Mono<String> findCountForItem(Long itemId, Long userId)
-    {
-        return cacheLoader.getQuantity(itemId, userId);
+    /**
+     * Finds the count of items in the basket for the current user.
+     * If the user is anonymous, it returns "0".
+     * @param itemId ID of the item to find the count for.
+     * @return Mono containing the count as a String.
+     */
+    public Mono<String> findCountForItem(Long itemId) {
+        return currentUser()
+            .filter(u -> u.getAuthorities().stream()
+                .noneMatch(a -> a.getAuthority().equals(ROLE_ANONYMOUS)))
+            .flatMap(authUser -> isAnonymous(itemId, authUser)
+                ? Mono.just("0")
+                : cacheLoader.getQuantity(itemId, authUser.getId()));
+    }
+
+    /**
+     * Checks if the user is anonymous and logs a debug message if so.
+     * @param itemId ID of the item being checked.
+     * @param authUser The authenticated user.
+     * @return true if the user is anonymous, false otherwise.
+     */
+    private static boolean isAnonymous(Long itemId, AuthUser authUser) {
+        if (authUser.getAuthorities().stream()
+            .anyMatch(a -> a.getAuthority().equals(ROLE_ANONYMOUS))) {
+            log.debug("Anonymous user is trying to get count of. Returning count as 0 for item ID: {}", itemId);
+            return true;
+        }
+        return false;
     }
 }

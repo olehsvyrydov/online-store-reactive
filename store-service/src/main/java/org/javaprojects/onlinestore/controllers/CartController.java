@@ -1,8 +1,10 @@
 package org.javaprojects.onlinestore.controllers;
 
 import org.javaprojects.onlinestore.enums.Action;
+import org.javaprojects.onlinestore.security.AuthUser;
 import org.javaprojects.onlinestore.services.CatalogService;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -34,7 +36,7 @@ public class CartController {
     @GetMapping("/items")
     public Mono<String> getItemsInBasket(Model model) {
        return catalogService.getItemsInBasket()
-              .collectList()
+           .collectList()
            .doOnNext(items -> {
                double totalPrice =  items.stream()
                    .mapToDouble(itemModel -> itemModel.getPrice().doubleValue() * itemModel.getCount())
@@ -54,12 +56,14 @@ public class CartController {
      * @param action action to be performed on the item
      * @return redirect to the cart page
      */
-    @PreAuthorize("!hasRole('ROLE_ANONIMOUS')")
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("/items/{id}")
     public Mono<String> updateItemCountInBasket(
             @PathVariable("id") Long id,
-            @ModelAttribute Action action) {
-        return catalogService.updateCountInBasket(id, action.action())
+            @ModelAttribute Action action,
+            @AuthenticationPrincipal Mono<AuthUser> authUserMono) {
+        return authUserMono.flatMap(authUser ->
+                catalogService.updateCountInBasket(id, action.action(), authUser))
             .thenReturn("redirect:/cart/items");
     }
 }

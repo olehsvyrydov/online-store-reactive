@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS app_user (
     username VARCHAR(64) UNIQUE NOT NULL,
     password VARCHAR(72) NOT NULL,
     enabled BOOLEAN DEFAULT TRUE,
-    role TEXT[] NOT NULL
+    roles TEXT[] NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS items(

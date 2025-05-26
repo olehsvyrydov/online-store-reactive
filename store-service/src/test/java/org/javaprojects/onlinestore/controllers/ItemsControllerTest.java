@@ -3,6 +3,8 @@ package org.javaprojects.onlinestore.controllers;
 import org.javaprojects.onlinestore.entities.Item;
 import org.javaprojects.onlinestore.helpers.RedisTestContainer;
 import org.javaprojects.onlinestore.repositories.ItemsRepository;
+import org.javaprojects.onlinestore.helpers.WithAuthUser;
+import org.javaprojects.onlinestore.security.AuthUser;
 import org.javaprojects.onlinestore.services.CatalogService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,19 +12,22 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory;
-import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.*;
 
 @ActiveProfiles("test")
 @SpringBootTest
 @AutoConfigureWebTestClient
-@WithMockUser
+@WithAuthUser(username = "testuser", roles = {"USER", "ADMIN"})
 class ItemsControllerTest extends RedisTestContainer
 {
     @Autowired
@@ -36,14 +41,19 @@ class ItemsControllerTest extends RedisTestContainer
 
     @Autowired
     ReactiveRedisConnectionFactory redisConnectionFactory;
-    Item entity = new Item(1L, "Test Title1", "Test Description1",
-        BigDecimal.valueOf(19.99), "test-path1.jpg", 1L);
+    Item entity = new Item(1L, "Test Title1", "Test Description1", BigDecimal.valueOf(19.99), "test-path1.jpg");
     @BeforeEach
     void setUp()
     {
         // start with an empty cache so first request must hit the DB
         redisConnectionFactory.getReactiveConnection().serverCommands().flushAll().block();
         itemsRepository.save(entity).block();
+        AuthUser user = new AuthUser(1L, "test", "pwd", true, List.of("ROLE_USER"));
+        webTestClient = webTestClient
+            .mutateWith(csrf())
+            .mutateWith(SecurityMockServerConfigurers
+                .mockAuthentication(new UsernamePasswordAuthenticationToken(
+                    user, "pwd", user.getAuthorities())));
     }
 
     @Test
@@ -62,7 +72,8 @@ class ItemsControllerTest extends RedisTestContainer
 
     @Test
     void updateItemCountInBasket_plusAction() {
-        webTestClient.post()
+        webTestClient
+            .post()
             .uri(uriBuilder ->
                 uriBuilder.path("/items/1")
                     .queryParam("action", "plus")
@@ -74,7 +85,8 @@ class ItemsControllerTest extends RedisTestContainer
 
     @Test
     void updateItemCountInBasket_minusAction() {
-        webTestClient.post()
+        webTestClient
+            .post()
             .uri(uriBuilder ->
                 uriBuilder.path("/items/1")
                     .queryParam("action", "minus")
@@ -86,7 +98,8 @@ class ItemsControllerTest extends RedisTestContainer
 
     @Test
     void updateItemCountInBasket_deleteAction() {
-        webTestClient.post()
+        webTestClient
+            .post()
             .uri(uriBuilder ->
                 uriBuilder.path("/items/1")
                     .queryParam("action", "delete")

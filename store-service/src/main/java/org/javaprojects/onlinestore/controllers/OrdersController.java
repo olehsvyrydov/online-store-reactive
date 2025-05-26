@@ -1,6 +1,9 @@
 package org.javaprojects.onlinestore.controllers;
 
+import org.javaprojects.onlinestore.security.AuthUser;
 import org.javaprojects.onlinestore.services.CatalogService;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,13 +14,12 @@ import reactor.core.publisher.Mono;
 
 import java.util.List;
 
-import static org.javaprojects.onlinestore.utils.SecurityUtil.currentUser;
-
 /**
  * This class is used to handle all requests related to the orders of items.
  * It contains methods to get all orders, get order by id and buy items in the basket.
  */
 @Controller
+@PreAuthorize("isAuthenticated()")
 public class OrdersController {
     private final CatalogService catalogService;
 
@@ -50,10 +52,12 @@ public class OrdersController {
     public Mono<String> getOrderById(
             @PathVariable("id") Long id,
             @RequestParam(value = "newOrder", defaultValue = "false") Boolean isNewOrder,
-            Model model
+            Model model,
+            @AuthenticationPrincipal Mono<AuthUser> authUserMono
     ) {
-        return catalogService.getOrderById(id)
-                .doOnNext(orderModel -> model.addAttribute("order", orderModel))
+        return authUserMono.flatMap(authUser ->
+                catalogService.getOrderById(id, authUser)
+                    .doOnNext(orderModel -> model.addAttribute("order", orderModel)))
             .then(Mono.just("order"));
     }
 
@@ -62,8 +66,8 @@ public class OrdersController {
      * @return redirect to the order page
      */
     @PostMapping("/buy")
-    public Mono<String> buy() {
-        return currentUser().flatMap(catalogService::buyItemsInBasket)
+    public Mono<String> buy(@AuthenticationPrincipal Mono<AuthUser> authUserMono) {
+        return authUserMono.flatMap(catalogService::buyItemsInBasket)
             .map(id -> "redirect:/orders/" + id + "?newOrder=true");
     }
 }
