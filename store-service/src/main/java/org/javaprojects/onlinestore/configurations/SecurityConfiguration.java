@@ -83,7 +83,7 @@ public class SecurityConfiguration
     public ServerLogoutSuccessHandler logoutSuccessHandler()
     {
         RedirectServerLogoutSuccessHandler handler = new RedirectServerLogoutSuccessHandler();
-        handler.setLogoutSuccessUrl(URI.create("/login?logout"));
+        handler.setLogoutSuccessUrl(URI.create("/main/items"));
         return handler;
     }
 
