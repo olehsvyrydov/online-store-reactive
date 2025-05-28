@@ -1,7 +1,7 @@
 package org.javaprojects.onlinestore.controllers;
 
-import org.javaprojects.onlinestore.configurations.SecurityConfiguration;
 import org.javaprojects.onlinestore.enums.Sorting;
+import org.javaprojects.onlinestore.helpers.DummyOauth2TestConfiguration;
 import org.javaprojects.onlinestore.models.ItemModel;
 import org.javaprojects.onlinestore.security.AuthUser;
 import org.javaprojects.onlinestore.services.CatalogService;
@@ -13,7 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.test.context.support.WithAnonymousUser;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
@@ -33,7 +33,7 @@ import static org.springframework.security.test.web.reactive.server.SecurityMock
 
 @ActiveProfiles("test")
 @WebFluxTest(controllers = CatalogController.class)
-@ContextConfiguration(classes = {CatalogController.class, SecurityConfiguration.class})
+@ContextConfiguration(classes = {CatalogController.class, DummyOauth2TestConfiguration.class})
 class CatalogControllerTest {
     @Autowired
     private WebTestClient webTestClient;
@@ -41,22 +41,26 @@ class CatalogControllerTest {
     private CatalogService catalogService;
 
     @Test
-    @WithAnonymousUser
+    @WithMockUser
     void getMainPage() {
-        webTestClient.get().uri("/")
-                .exchange()
-                .expectStatus().is3xxRedirection()
-                .expectHeader().location("/main/items");
+        webTestClient
+            .get()
+            .uri("/")
+            .exchange()
+            .expectStatus().is3xxRedirection()
+            .expectHeader().location("/main/items");
     }
 
     @Test
-    @WithAnonymousUser
+    @WithMockUser
     void getAllProductsWithDefaultParameters() {
         ItemModel item = new ItemModel(1L, "Test Title", "Test Description", new BigDecimal("19.99"), "test-path.jpg", 0);
         List<ItemModel> itemList = Collections.singletonList(item);
         when(catalogService.findAllItems(anyInt(), anyInt(), anyString(), any(Sorting.class))).thenReturn(Flux.fromIterable(itemList));
         when(catalogService.getItemsCount()).thenReturn(Mono.just(10L));
-        webTestClient.get().uri(uriBuilder -> uriBuilder
+        webTestClient
+            .get()
+            .uri(uriBuilder -> uriBuilder
                 .path("/main/items")
                 .queryParam("search", "")
                 .queryParam("sort", "NO")

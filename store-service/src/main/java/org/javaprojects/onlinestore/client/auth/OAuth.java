@@ -17,32 +17,21 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.util.MultiValueMap;
 
 @jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.13.0")
-public class HttpBearerAuth implements Authentication {
-    private final String scheme;
-    private String bearerToken;
+public class OAuth implements Authentication {
+    private String accessToken;
 
-    public HttpBearerAuth(String scheme) {
-        this.scheme = scheme;
+    public String getAccessToken() {
+        return accessToken;
     }
 
-    public String getBearerToken() {
-        return bearerToken;
-    }
-
-    public void setBearerToken(String bearerToken) {
-        this.bearerToken = bearerToken;
+    public void setAccessToken(String accessToken) {
+        this.accessToken = accessToken;
     }
 
     @Override
     public void applyToParams(MultiValueMap<String, String> queryParams, HttpHeaders headerParams, MultiValueMap<String, String> cookieParams) {
-        if (bearerToken == null) {
-            return;
+        if (accessToken != null) {
+            headerParams.add(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken);
         }
-        headerParams.add(HttpHeaders.AUTHORIZATION, (scheme != null ? upperCaseBearer(scheme) + " " : "") + bearerToken);
     }
-
-    private static String upperCaseBearer(String scheme) {
-        return ("bearer".equalsIgnoreCase(scheme)) ? "Bearer" : scheme;
-    }
-
 }

@@ -2,6 +2,7 @@ package org.javaprojects.onlinestore.services;
 
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import org.javaprojects.onlinestore.entities.Item;
+import org.javaprojects.onlinestore.helpers.DummyOauth2TestConfiguration;
 import org.javaprojects.onlinestore.helpers.RedisTestContainer;
 import org.javaprojects.onlinestore.repositories.ItemsRepository;
 import org.javaprojects.onlinestore.security.AuthUser;
@@ -13,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
@@ -30,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @ActiveProfiles("test")
 @SpringBootTest
+@Import(DummyOauth2TestConfiguration.class)
 @WithAuthUser
 class CatalogServiceTest extends RedisTestContainer
 {

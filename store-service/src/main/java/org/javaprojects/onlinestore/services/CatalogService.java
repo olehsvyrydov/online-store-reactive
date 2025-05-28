@@ -22,6 +22,10 @@ import java.util.*;
 
 import static org.javaprojects.onlinestore.security.SecurityUtil.currentUser;
 
+/**
+ * Service class for managing the catalog of items, orders, and cart operations.
+ * It provides methods to retrieve items, manage the shopping cart, and process orders.
+ */
 @Service
 public class CatalogService {
     private static final Logger log = LoggerFactory.getLogger(CatalogService.class);
@@ -49,25 +53,60 @@ public class CatalogService {
         this.cache = cache;
     }
 
+    /**
+     * Retrieves all items from the catalog with pagination and sorting options.
+     *
+     * @param pageNumber   the page number to retrieve
+     * @param pageSize     the number of items per page
+     * @param searchString optional search string to filter items
+     * @param sorting      sorting options for the items
+     * @return a Flux of ItemModel representing the items in the catalog
+     */
     public Flux<ItemModel> findAllItems(int pageNumber, int pageSize, String searchString, Sorting sorting) {
         return cache.findPage(pageNumber, pageSize, searchString, sorting);
     }
 
+    /**
+     * Retrieves the total number of items in the catalog.
+     *
+     * @return a Mono containing the total count of items
+     */
     @Cacheable(value = "itemsSize", key = "'total'")
     public Mono<Long> getItemsCount()
     {
         return itemRepository.count();
     }
 
+    /**
+     * Retrieves an item by its ID.
+     *
+     * @param id the ID of the item
+     * @return a Mono containing the ItemModel if found, or empty if not found
+     */
     public Mono<ItemModel> getItemById(long id) {
         return cache.findById(id);
     }
 
+    /**
+     * Retrieves an item by its ID and the authenticated user.
+     *
+     * @param itemId        the ID of the item
+     * @param authUser  the authenticated user
+     * @return a Mono containing the ItemModel if found, or empty if not found
+     */
     public Mono<Void> incrementQuantity(Long itemId, AuthUser authUser) {
         return cache.incrementCount(itemId, authUser.getId())
                  .then();
     }
 
+    /**
+     * Decrements the quantity of an item in the basket.
+     * If the quantity reaches zero, the item is removed from the basket.
+     *
+     * @param itemId   the ID of the item
+     * @param authUser the authenticated user
+     * @return a Mono that completes when the operation is done
+     */
     public Mono<Void> decrementQuantity(Long itemId, AuthUser authUser) {
         return cache.decrementCount(itemId, authUser.getId())
             .flatMap(newValue -> {
@@ -80,12 +119,24 @@ public class CatalogService {
             .then();
     }
 
+    /**
+     * Deletes an item from the user's basket.
+     *
+     * @param itemId   the ID of the item to delete
+     * @param authUser the authenticated user
+     * @return a Mono that completes when the item is deleted
+     */
     public Mono<Void> deleteItemFromBasket(Long itemId, AuthUser authUser) {
         return cartRepository.removeFromCart(itemId, authUser.getId())
             .then(cache.resetCountValue(itemId, authUser.getId()))
             .then();
     }
 
+    /**
+     * Retrieves all items currently in the user's basket.
+     *
+     * @return a Flux of ItemModel representing the items in the basket
+     */
     public Flux<ItemModel> getItemsInBasket() {
         return currentUser()
             .switchIfEmpty(Mono.error(new UserPrincipalNotFoundException("User not authenticated")))
@@ -104,6 +155,12 @@ public class CatalogService {
         };
     }
 
+    /**
+     * Finds all orders for the current user and returns them as a Flux of OrderModel.
+     * Each OrderModel contains a list of ItemModel representing the items in the order.
+     *
+     * @return a Flux of OrderModel containing all orders for the current user
+     */
     public Flux<OrderModel> findAllOrders() {
         Flux<Order> orderFlux = currentUser().flatMapMany(user ->
             ordersRepository.findByUserId(user.getId()));
@@ -136,6 +193,13 @@ public class CatalogService {
             .thenMany(Flux.fromIterable(orderModelMap.values()));
     }
 
+    /**
+     * Retrieves an order by its ID for the current user.
+     *
+     * @param id the ID of the order
+     * @param authUser the authenticated user
+     * @return a Mono containing the OrderModel if found, or an error if not found
+     */
     public Mono<OrderModel> getOrderById(Long id, AuthUser authUser) {
         Mono<Order> orderMono = ordersRepository.findByIdAndUserId(id, authUser.getId())
             .switchIfEmpty(Mono.error(new IllegalStateException("Order not found")));
@@ -169,6 +233,12 @@ public class CatalogService {
             });
     }
 
+    /**
+     * Buys all items in the user's basket, processes payment, and creates an order.
+     *
+     * @param authUser the authenticated user
+     * @return a Mono containing the ID of the created order
+     */
     @Transactional
     public Mono<Long> buyItemsInBasket(AuthUser authUser) {
         Flux<Cart> cartFlux = cartRepository.findByUserId(authUser.getId());
@@ -228,14 +298,19 @@ public class CatalogService {
      * @param orderItems List of OrderItem
      * @return BigDecimal representing the total price
      */
-    private static BigDecimal getTotalPrice(List<OrderItem> orderItems)
-    {
+    private static BigDecimal getTotalPrice(List<OrderItem> orderItems){
         return orderItems.stream()
             .map(orderItem ->
                 BigDecimal.valueOf(orderItem.getQuantity()).multiply(orderItem.getItem().getPrice()))
             .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
+    /**
+     * Ensures that the balance is not null and returns it as a Mono.
+     *
+     * @param dto the GetBalanceResponse containing the balance
+     * @return a Mono containing the balance if it is not null
+     */
     private Mono<Float> requireNonNullBalance(GetBalanceResponse dto) {
         if (dto == null || dto.getBalance() == null) {
             return Mono.error(new IllegalStateException("Balance not found"));
@@ -243,9 +318,14 @@ public class CatalogService {
         return Mono.just(dto.getBalance());
     }
 
-
-        private Mono<Void> processPayment(Mono<GetBalanceResponse> balanceMono, float total)
-    {
+    /**
+     * Processes the payment by checking the balance and making the payment.
+     *
+     * @param balanceMono a Mono containing the GetBalanceResponse with the user's balance
+     * @param total       the total amount to be paid
+     * @return a Mono that completes when the payment is processed successfully
+     */
+    private Mono<Void> processPayment(Mono<GetBalanceResponse> balanceMono, float total) {
         return balanceMono
             .flatMap(this::requireNonNullBalance)
             .filter(bal -> bal.compareTo(0f) > 0)

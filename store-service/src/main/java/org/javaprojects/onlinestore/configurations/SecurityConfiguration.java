@@ -1,5 +1,6 @@
 package org.javaprojects.onlinestore.configurations;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -9,6 +10,8 @@ import org.springframework.security.config.annotation.web.reactive.EnableWebFlux
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.*;
+import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.authentication.RedirectServerAuthenticationEntryPoint;
 import org.springframework.security.web.server.authentication.RedirectServerAuthenticationSuccessHandler;
@@ -92,4 +95,21 @@ public class SecurityConfiguration
     {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
     }
+
+    @Bean
+    public ReactiveOAuth2AuthorizedClientManager auth2AuthorizedClientManager(
+        ReactiveClientRegistrationRepository reactiveClientRegistrationRepository,
+        ReactiveOAuth2AuthorizedClientService reactiveOAuth2AuthorizedClientService
+    ) {
+        AuthorizedClientServiceReactiveOAuth2AuthorizedClientManager manager =
+            new AuthorizedClientServiceReactiveOAuth2AuthorizedClientManager(
+                reactiveClientRegistrationRepository, reactiveOAuth2AuthorizedClientService);
+
+        manager.setAuthorizedClientProvider(ReactiveOAuth2AuthorizedClientProviderBuilder.builder()
+            .clientCredentials()
+            .refreshToken()
+            .build());
+        return manager;
+    }
+
 }

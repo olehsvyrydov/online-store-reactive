@@ -7,7 +7,8 @@ ARRAY['ROLE_ADMIN']
 ('test',
  '{bcrypt}$2a$10$wOYmQcE/gY3yYlhc2xdmc.rd4G0Pwlg24EKI65fFwmWf.1sWtgQB6', -- 123456789
  TRUE,
- ARRAY ['ROLE_USER']);
+ ARRAY ['ROLE_USER'])
+ON CONFLICT (username) DO NOTHING;
 
 INSERT INTO items (title, description, price, img_path) VALUES
 ('Item 1', 'Description for item 1', 10.99, '/images/item1.jpg'),

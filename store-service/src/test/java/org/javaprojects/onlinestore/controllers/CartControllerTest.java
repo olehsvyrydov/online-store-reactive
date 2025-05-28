@@ -1,7 +1,9 @@
 package org.javaprojects.onlinestore.controllers;
 
 import org.javaprojects.onlinestore.entities.Item;
+import org.javaprojects.onlinestore.helpers.DummyOauth2TestConfiguration;
 import org.javaprojects.onlinestore.helpers.RedisTestContainer;
+import org.javaprojects.onlinestore.infrastructure.PaymentHealthClient;
 import org.javaprojects.onlinestore.models.ItemModel;
 import org.javaprojects.onlinestore.repositories.CartRepository;
 import org.javaprojects.onlinestore.security.AuthUser;
@@ -16,6 +18,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -38,6 +41,7 @@ import static org.springframework.security.test.web.reactive.server.SecurityMock
 @ActiveProfiles("test")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureWebTestClient
+@Import(DummyOauth2TestConfiguration.class)
 class CartControllerTest extends RedisTestContainer
 {
     @Autowired
@@ -46,6 +50,8 @@ class CartControllerTest extends RedisTestContainer
     private CatalogService catalogService;
     @MockitoBean
     private CartRepository cartRepository;
+    @MockitoBean
+    private PaymentHealthClient paymentHealthClient;
 
     @BeforeEach
     void setUp() {
@@ -61,6 +67,7 @@ class CartControllerTest extends RedisTestContainer
 
     @Test
     void getItemsInBasket() {
+        when(paymentHealthClient.isUp()).thenReturn(Mono.just(Boolean.TRUE));
         webTestClient
             .mutateWith(getMockAuthentication())
             .get()

@@ -7,7 +7,9 @@ info:
     It includes endpoints for making payments and checking the account balance.
 servers:
   - description: Local server for testing goals only
-    url: http://localhost:8080
+    url: http://keycloak:8080
+security:
+  - shop-auth: ["profile"]
 
 paths:
   /pay/{amount}:
@@ -98,6 +100,19 @@ components:
           balance:
             type: number
             format: float
+
+  securitySchemes:
+    shop-auth:
+      type: oauth2
+      description: |
+        OAuth2 security scheme for the payment service.
+        It uses JWT tokens issued by Keycloak.
+      flows:
+        authorizationCode:
+          authorizationUrl: http://keykloak:8080/auth/realms/online-shop-realm/protocol/openid-connect/auth
+          tokenUrl: http://keykloak:8080/auth/realms/online-shop-realm/protocol/openid-connect/token
+          scopes:
+            profile: Access to user profile information
 
 tags:
   - name: Payment

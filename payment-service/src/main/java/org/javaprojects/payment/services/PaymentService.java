@@ -2,11 +2,13 @@ package org.javaprojects.payment.services;
 
 import org.javaprojects.payment.configuration.ApplicationProperties;
 import org.javaprojects.payment.exceptions.LowBalanceException;
+import org.slf4j.Logger;
 import org.springframework.stereotype.Service;
 
 @Service
 public class PaymentService
 {
+    private static final Logger log = org.slf4j.LoggerFactory.getLogger(PaymentService.class);
     private float balance;
 
     public PaymentService(ApplicationProperties applicationProperties)
@@ -26,6 +28,7 @@ public class PaymentService
         }
 
         balance = balance - amount;
+        log.debug("Processed payment of amount: {}, new balance: {}", amount, balance);
         return balance;
     }
 

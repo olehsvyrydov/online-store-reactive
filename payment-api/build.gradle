@@ -1,7 +1,7 @@
 import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
 
 plugins {
-    id 'org.openapi.generator' version '7.12.0'
+    id 'org.openapi.generator' version '7.13.0'
 }
 
 openApiGenerate {
@@ -69,6 +69,6 @@ tasks.named('test') {
 }
 
 tasks.named('compileJava') {
-    // dependsOn([tasks.openApiGenerate, tasks.buildClient]) - вот так, если нужно опираться на обе задачи
-    dependsOn(tasks.openApiGenerate)
+    dependsOn([tasks.openApiGenerate, tasks.buildClient]) // - generate both client and server code
+//    dependsOn(tasks.openApiGenerate) // - generate only server code
 }

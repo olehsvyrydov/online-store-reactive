@@ -1,6 +1,7 @@
 package org.javaprojects.onlinestore.controllers;
 
 import org.javaprojects.onlinestore.entities.Item;
+import org.javaprojects.onlinestore.helpers.DummyOauth2TestConfiguration;
 import org.javaprojects.onlinestore.models.ItemModel;
 import org.javaprojects.onlinestore.models.OrderModel;
 import org.javaprojects.onlinestore.security.AuthUser;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -32,6 +34,7 @@ import static org.springframework.security.test.web.reactive.server.SecurityMock
 @ActiveProfiles("test")
 @WebFluxTest(controllers = OrdersController.class)
 @ContextConfiguration(classes = {OrdersController.class})
+@Import(DummyOauth2TestConfiguration.class)
 @WithMockUser
 class OrdersControllerTest {
     @Autowired

@@ -17,6 +17,11 @@ import reactor.core.publisher.Mono;
 import java.util.Map;
 import org.slf4j.Logger;
 
+/**
+ * CacheLoader is responsible for loading items and cart counts into Redis cache.
+ * It interacts with the ItemsRepository and CartRepository to fetch data
+ * and store it in Redis for quick access.
+ */
 @Component
 public class CacheLoader
 {
@@ -45,6 +50,15 @@ public class CacheLoader
         this.cartRepository = cartRepository;
     }
 
+    /**
+     * Retrieves the quantity of a specific item in the user's cart.
+     * If the item is not found in the cart, it initializes the quantity to 0.
+     * The result is cached in Redis for quick access.
+     *
+     * @param itemId ID of the item
+     * @param userId ID of the user
+     * @return Mono containing the quantity of the item in the cart
+     */
     public Mono<String> getQuantity(long itemId, long userId) {
         String key = cartCountKey(itemId, userId);
         return cartRepository.findByItemIdAndUserId(itemId, userId)
@@ -55,6 +69,13 @@ public class CacheLoader
                 itemId, userId, count));
     }
 
+    /**
+     * Loads an item from the repository and caches it in Redis.
+     * It also updates the sorted sets for price and title.
+     *
+     * @param itemId ID of the item to load
+     * @return Flux containing the item's details as a Map.Entry
+     */
     public Flux<Map.Entry<String, String>> loadItem(long itemId) {
         var key = itemKey(itemId);
         log.debug("Loading item from cache. Key: {}, itemId: {}", key, itemId);
@@ -68,17 +89,16 @@ public class CacheLoader
             );
     }
 
-    private static Map<String, String> itemToMap(Item item)
-    {
-        return Map.of(
-            ID,          String.valueOf(item.getId()),
-            TITLE,       item.getTitle(),
-            DESCRIPTION, item.getDescription(),
-            PRICE,       item.getPrice().toPlainString(),
-            IMG,         item.getImgPath()
-        );
-    }
-
+    /**
+     * Loads pages of items from the repository based on the provided parameters.
+     * It supports pagination, searching, and sorting.
+     *
+     * @param page         Page number to load
+     * @param size         Number of items per page
+     * @param searchString Search string for filtering items
+     * @param sorting      Sorting criteria
+     * @return Flux containing the IDs of the loaded items
+     */
     public Flux<Long> loadPages(int page, int size, String searchString, Sorting sorting)
     {
         Sort sorted = switch (sorting) {
@@ -93,6 +113,13 @@ public class CacheLoader
             .flatMap(this::save);
     }
 
+    /**
+     * Saves an item to the Redis cache.
+     * It stores the item's details in a hash and updates the sorted sets for price and title.
+     *
+     * @param item Item to save
+     * @return Mono containing the ID of the saved item
+     */
     public Mono<Long> save(Item item) {
         String key = itemKey(item.getId());
         log.debug("saving item to cache. Key: {}, Title: {}", key, item.getTitle());
@@ -106,14 +133,15 @@ public class CacheLoader
             .thenReturn(item.getId());
     }
 
-    private String itemKey(long itemId) {
-        return KEY_ITEM.formatted(itemId);
-    }
-
-    private String cartCountKey(long itemId, long userId) {
-        return KEY_CART_COUNT.formatted(itemId, userId);
-    }
-
+    /**
+     * Updates the count of an item in the user's cart.
+     * If the item does not exist in the cart, it creates a new cart entry with the specified count.
+     *
+     * @param id      ID of the item
+     * @param userId  ID of the user
+     * @param newValue New count for the item
+     * @return Mono containing the updated Cart object
+     */
     public Mono<Cart> updateItemCount(long id, long userId, Long newValue)
     {
         log.debug("Updating item count in the cart. ID: [{}], User ID: [{}], Count: [{}]", id, userId, newValue);
@@ -131,5 +159,24 @@ public class CacheLoader
             })
             .doOnNext(cart -> log.info("Updated item count in the cart. ID: {}, User ID: {}, Count: {}",
                 id, userId, newValue));
+    }
+
+    private static Map<String, String> itemToMap(Item item)
+    {
+        return Map.of(
+            ID,          String.valueOf(item.getId()),
+            TITLE,       item.getTitle(),
+            DESCRIPTION, item.getDescription(),
+            PRICE,       item.getPrice().toPlainString(),
+            IMG,         item.getImgPath()
+        );
+    }
+
+    private String itemKey(long itemId) {
+        return KEY_ITEM.formatted(itemId);
+    }
+
+    private String cartCountKey(long itemId, long userId) {
+        return KEY_CART_COUNT.formatted(itemId, userId);
     }
 }
