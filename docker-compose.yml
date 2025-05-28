@@ -93,6 +93,7 @@ services:
       ONLINE_STORE_PATH: 'http://payment-service:8082'
       SPRING_SECURITY_OAUTH2_CLIENT_PROVIDER_KEYCLOAK_ISSUER_URI: http://keycloak:8080/realms/online-shop-realm
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/online-shop-realm
+      CLIENT_SECRET: xDetEZ1l6A1c1Z96qyze3HyjkSyCg2Zw
 
 volumes:
   db_data:

@@ -19,7 +19,21 @@ docker compose up --build -d
 
 You can set up initial **balance** into [docker-compose.yml](docker-compose.yml) file as `INITIAL_BALANCE` environment variable in payment-service
 
-# Open the link in browser:
+Before you start working with the application, you must update `Client secret` in **keycloak** service.
+for that, you should dgo to the browser and open Keycloak admin console:
+```text
+http://localhost:8080/
+```
+Then go to online-shop-realm -> Clients -> store-service -> Credentials tab
+and regenerate the `Client secret` then put the new value into the [docker-compose.yml](docker-compose.yml) file
+as `CLIENT_SECRET` environment variable in `store-service` service.
+Then you can restart the application with the command:
+```shell
+docker compose up -d
+```
+
+# Open the link in browser to see the application:
 ```text
 http://localhost:8081/
 ```
+
