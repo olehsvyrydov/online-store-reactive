@@ -69,6 +69,6 @@ tasks.named('test') {
 }
 
 tasks.named('compileJava') {
-    dependsOn([tasks.openApiGenerate, tasks.buildClient]) // - generate both client and server code
+//    dependsOn([tasks.openApiGenerate, tasks.buildClient]) // - generate both client and server code
 //    dependsOn(tasks.openApiGenerate) // - generate only server code
 }
