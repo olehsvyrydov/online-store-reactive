@@ -16,20 +16,18 @@ package org.javaprojects.onlinestore.client;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.InvalidMediaTypeException;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.reactive.ClientHttpRequest;
 import org.springframework.http.codec.json.Jackson2JsonDecoder;
 import org.springframework.http.codec.json.Jackson2JsonEncoder;
-import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
-import org.springframework.http.client.reactive.ClientHttpRequest;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -59,11 +57,10 @@ import org.javaprojects.onlinestore.client.auth.Authentication;
 import org.javaprojects.onlinestore.client.auth.HttpBasicAuth;
 import org.javaprojects.onlinestore.client.auth.HttpBearerAuth;
 import org.javaprojects.onlinestore.client.auth.ApiKeyAuth;
+import org.javaprojects.onlinestore.client.auth.OAuth;
 
 @jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.12.0")
-@Component
 public class ApiClient extends JavaTimeFormatter {
-
     public enum CollectionFormat {
         CSV(","), TSV("\t"), SSV(" "), PIPES("|"), MULTI(null);
 
@@ -82,7 +79,7 @@ public class ApiClient extends JavaTimeFormatter {
     private HttpHeaders defaultHeaders = new HttpHeaders();
     private MultiValueMap<String, String> defaultCookies = new LinkedMultiValueMap<String, String>();
 
-    private String basePath;
+    private String basePath = "http://localhost:8080";
 
     private final WebClient webClient;
     private final DateFormat dateFormat;
@@ -137,6 +134,7 @@ public class ApiClient extends JavaTimeFormatter {
     protected void init() {
         // Setup authentications (key: authentication name, value: authentication).
         authentications = new HashMap<String, Authentication>();
+        authentications.put("shop-auth", new OAuth());
         // Prevent the authentications from being modified.
         authentications = Collections.unmodifiableMap(authentications);
     }
@@ -195,7 +193,6 @@ public class ApiClient extends JavaTimeFormatter {
      * @param basePath the base path
      * @return ApiClient this client
      */
-    @Value("${api.online-store.path}")
     public ApiClient setBasePath(String basePath) {
         this.basePath = basePath;
         return this;
@@ -287,6 +284,20 @@ public class ApiClient extends JavaTimeFormatter {
             }
         }
         throw new RuntimeException("No API key authentication configured!");
+    }
+
+    /**
+     * Helper method to set access token for the first OAuth2 authentication.
+     * @param accessToken the access token
+     */
+    public void setAccessToken(String accessToken) {
+        for (Authentication auth : authentications.values()) {
+            if (auth instanceof OAuth) {
+                ((OAuth) auth).setAccessToken(accessToken);
+                return;
+            }
+        }
+        throw new RuntimeException("No OAuth2 authentication configured!");
     }
 
     /**
@@ -618,7 +629,7 @@ public class ApiClient extends JavaTimeFormatter {
         MediaType contentType, String[] authNames) {
         updateParamsForAuth(authNames, queryParams, headerParams, cookieParams);
 
-        final UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(basePath).path(path);
+        final UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(basePath).path(path);
 
         String finalUri = builder.build(false).toUriString();
         Map<String, Object> uriParams = new HashMap<>();

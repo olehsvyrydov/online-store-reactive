@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <meta charset="UTF-8">
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      lang="en">
 
 <head>
     <title>Заказы</title>
@@ -8,12 +10,20 @@
 
 <body>
 <div style="width:70%;margin-left: auto;margin-right: auto;">
+
+<div style="float:right;">
+    <form action="/logout" method="post" th:if="${#authentication != null}">
+        <span th:text="${#authentication.name}">User</span>
+        <input type="submit" value="Logout"/>
+    </form>
+</div>
 <a href="/cart/items" style="float:right;">
     <b>КОРЗИНА &cudarrr;</b>
 </a>
 <a href="/main/items" style="float:right;">
     <b>ГЛАВНАЯ &cudarrr;</b>
 </a>
+
 <h1 style="text-align:center;">Мои заказы</h1>
 <h2 th:if="${orders.isEmpty()}" style="text-align:center;">Здесь пока пусто</h2>
 <table style="width:70%;margin-left:auto;margin-right:auto;">

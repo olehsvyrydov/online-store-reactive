@@ -1,0 +1,10 @@
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ""
+
+jwt:
+  hmac:
+    secret: test-signing-key-32-bytes-minimum!!

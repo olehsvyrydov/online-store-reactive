@@ -1,9 +1,19 @@
 server:
   port: 8082
 
+logging:
+  level:
+    org.javaprojects.payment: DEBUG
+
 spring:
   application:
     name: payment-service
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://keycloak:8080/realms/online-shop-realm
 
 app:
   initialBalance: ${INITIAL_BALANCE:-100.00}

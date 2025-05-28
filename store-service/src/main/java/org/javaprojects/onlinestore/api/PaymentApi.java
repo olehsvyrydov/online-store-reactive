@@ -8,22 +8,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.web.reactive.function.client.WebClient.ResponseSpec;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.reactive.function.client.WebClient.ResponseSpec;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 
 @jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.12.0")
-@Component
 public class PaymentApi {
     private ApiClient apiClient;
 
@@ -31,7 +28,6 @@ public class PaymentApi {
         this(new ApiClient());
     }
 
-    @Autowired
     public PaymentApi(ApiClient apiClient) {
         this.apiClient = apiClient;
     }
@@ -54,7 +50,7 @@ public class PaymentApi {
      * @return UpdateBalanceResponse
      * @throws WebClientResponseException if an error occurs while attempting to invoke the API
      */
-    private ResponseSpec makePaymentRequestCreation(Float amount) throws WebClientResponseException {
+    private ResponseSpec makePaymentRequestCreation(@jakarta.annotation.Nonnull Float amount) throws WebClientResponseException {
         Object postBody = null;
         // verify the required parameter 'amount' is set
         if (amount == null) {
@@ -77,7 +73,7 @@ public class PaymentApi {
         final String[] localVarContentTypes = { };
         final MediaType localVarContentType = apiClient.selectHeaderContentType(localVarContentTypes);
 
-        String[] localVarAuthNames = new String[] {  };
+        String[] localVarAuthNames = new String[] { "shop-auth" };
 
         ParameterizedTypeReference<UpdateBalanceResponse> localVarReturnType = new ParameterizedTypeReference<UpdateBalanceResponse>() {};
         return apiClient.invokeAPI("/pay/{amount}", HttpMethod.GET, pathParams, queryParams, postBody, headerParams, cookieParams, formParams, localVarAccept, localVarContentType, localVarAuthNames, localVarReturnType);
@@ -92,7 +88,7 @@ public class PaymentApi {
      * @return UpdateBalanceResponse
      * @throws WebClientResponseException if an error occurs while attempting to invoke the API
      */
-    public Mono<UpdateBalanceResponse> makePayment(Float amount) throws WebClientResponseException {
+    public Mono<UpdateBalanceResponse> makePayment(@jakarta.annotation.Nonnull Float amount) throws WebClientResponseException {
         ParameterizedTypeReference<UpdateBalanceResponse> localVarReturnType = new ParameterizedTypeReference<UpdateBalanceResponse>() {};
         return makePaymentRequestCreation(amount).bodyToMono(localVarReturnType);
     }
@@ -106,7 +102,7 @@ public class PaymentApi {
      * @return ResponseEntity&lt;UpdateBalanceResponse&gt;
      * @throws WebClientResponseException if an error occurs while attempting to invoke the API
      */
-    public Mono<ResponseEntity<UpdateBalanceResponse>> makePaymentWithHttpInfo(Float amount) throws WebClientResponseException {
+    public Mono<ResponseEntity<UpdateBalanceResponse>> makePaymentWithHttpInfo(@jakarta.annotation.Nonnull Float amount) throws WebClientResponseException {
         ParameterizedTypeReference<UpdateBalanceResponse> localVarReturnType = new ParameterizedTypeReference<UpdateBalanceResponse>() {};
         return makePaymentRequestCreation(amount).toEntity(localVarReturnType);
     }
@@ -120,7 +116,7 @@ public class PaymentApi {
      * @return ResponseSpec
      * @throws WebClientResponseException if an error occurs while attempting to invoke the API
      */
-    public ResponseSpec makePaymentWithResponseSpec(Float amount) throws WebClientResponseException {
+    public ResponseSpec makePaymentWithResponseSpec(@jakarta.annotation.Nonnull Float amount) throws WebClientResponseException {
         return makePaymentRequestCreation(amount);
     }
 }

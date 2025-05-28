@@ -7,6 +7,7 @@ server:
 logging:
   level:
     org.javaprojects.onlinestore: DEBUG
+    org.springframework.data.redis: DEBUG
 
 spring:
   application:
@@ -39,6 +40,19 @@ spring:
           region:
             factory-class: org.hibernate.cache.jcache.JCacheRegionFactory
 
+  security:
+    oauth2:
+      client:
+        provider:
+          keycloak:
+            issuer-uri: http://keycloak:8080/realms/online-shop-realm
+        registration:
+           store-service:
+              provider: keycloak
+              authorization-grant-type: client_credentials
+              client-id: store-service
+              client-secret: ${CLIENT_SECRET}
+              scope: profile
 api:
   online-store:
     path: ${ONLINE_STORE_PATH:-http://localhost:8082}

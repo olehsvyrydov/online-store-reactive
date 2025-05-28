@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <meta charset="UTF-8">
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      lang="en">
 
 <head>
     <title>Витрина товаров</title>
@@ -9,12 +11,19 @@
 <body>
 <div style="width:70%;margin-left: auto;margin-right: auto;">
         <h1>Витрина товаров</h1>
+    <div style="float:right;">
+        <form action="/logout" method="post" th:if="${#authentication != null}">
+            <span th:text="${#authentication.name}">User</span>
+            <input type="submit" value="Logout"/>
+        </form>
+    </div>
     <a href="/orders" style="float:right;">
         <b>ЗАКАЗЫ &cudarrr;</b>
     </a>
     <a href="/cart/items" style="float:right;">
         <b>КОРЗИНА &cudarrr;</b>
     </a>
+
     <table style="width:70%;margin-left:auto;margin-right:auto;">
         <tr>
             <td>

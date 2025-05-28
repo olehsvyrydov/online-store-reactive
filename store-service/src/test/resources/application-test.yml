@@ -19,11 +19,6 @@ spring:
       data-locations: classpath:/db/data.sql
       mode: always
 
-  r2dbc:
-    url: r2dbc:h2:mem:///testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=TRUE
-    username: root
-    password: root
-
   jpa:
     hibernate:
       ddl-auto: update

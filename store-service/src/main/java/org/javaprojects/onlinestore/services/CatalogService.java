@@ -7,18 +7,25 @@ import org.javaprojects.onlinestore.enums.Sorting;
 import org.javaprojects.onlinestore.exceptions.InsufficientFundsException;
 import org.javaprojects.onlinestore.models.*;
 import org.javaprojects.onlinestore.repositories.*;
+import org.javaprojects.onlinestore.security.AuthUser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
+import java.nio.file.attribute.UserPrincipalNotFoundException;
 import java.util.*;
 
+import static org.javaprojects.onlinestore.security.SecurityUtil.currentUser;
+
+/**
+ * Service class for managing the catalog of items, orders, and cart operations.
+ * It provides methods to retrieve items, manage the shopping cart, and process orders.
+ */
 @Service
 public class CatalogService {
     private static final Logger log = LoggerFactory.getLogger(CatalogService.class);
@@ -46,109 +53,117 @@ public class CatalogService {
         this.cache = cache;
     }
 
+    /**
+     * Retrieves all items from the catalog with pagination and sorting options.
+     *
+     * @param pageNumber   the page number to retrieve
+     * @param pageSize     the number of items per page
+     * @param searchString optional search string to filter items
+     * @param sorting      sorting options for the items
+     * @return a Flux of ItemModel representing the items in the catalog
+     */
     public Flux<ItemModel> findAllItems(int pageNumber, int pageSize, String searchString, Sorting sorting) {
-        Sort sorted = switch (sorting) {
-            case NO -> Sort.unsorted();
-            case PRICE -> Sort.by("price").ascending();
-            case ALPHA -> Sort.by("title").ascending();
-        };
-        Pageable pageable = PageRequest.of(pageNumber, pageSize, sorted);
-
-        return cache.findPage(pageNumber, pageSize, searchString, sorting)
-            .switchIfEmpty((searchString.isBlank()
-                    ? itemRepository.findBy(pageable)
-                    : itemRepository.findBySearchString(searchString, pageable))
-
-            .map(item -> {
-                log.debug("findAllItems. Processed item. Title: {}", item.getTitle());
-                return toModel(item, item.getCount());
-            })
-                .flatMap(itemModel ->
-                    cache.save(itemModel)
-                        .thenReturn(itemModel)
-            ));
+        return cache.findPage(pageNumber, pageSize, searchString, sorting);
     }
 
-    private ItemModel toModel(Item e, long count) {
-        return new ItemModel(e.getId(), e.getTitle(), e.getDescription(),
-            e.getPrice(), e.getImgPath(), count);
-    }
-
+    /**
+     * Retrieves the total number of items in the catalog.
+     *
+     * @return a Mono containing the total count of items
+     */
     @Cacheable(value = "itemsSize", key = "'total'")
     public Mono<Long> getItemsCount()
     {
         return itemRepository.count();
     }
 
+    /**
+     * Retrieves an item by its ID.
+     *
+     * @param id the ID of the item
+     * @return a Mono containing the ItemModel if found, or empty if not found
+     */
     public Mono<ItemModel> getItemById(long id) {
-        return cache.findById(id)
-            .switchIfEmpty(
-                itemRepository.findById(id)
-                    .switchIfEmpty(Mono.error(new IllegalStateException("Item not found")))
-                    .map(item -> toModel(item, item.getCount()))
-                    .flatMap(itemModel -> cache.save(itemModel).thenReturn(itemModel))
-            );
+        return cache.findById(id);
     }
 
-    public Mono<Void> incrementQuantity(Long itemId) {
-        return cartRepository.findByItemId(itemId)
-            .switchIfEmpty(
-                Mono.defer(() ->
-                    cartRepository.insertToCart(itemId)
-                        .then(Mono.empty())
-                )
-            )
-            .then(cartRepository.incrementItemCount(itemId))
-            .then(cache.incrementCount(itemId))
-            .then();
+    /**
+     * Retrieves an item by its ID and the authenticated user.
+     *
+     * @param itemId        the ID of the item
+     * @param authUser  the authenticated user
+     * @return a Mono containing the ItemModel if found, or empty if not found
+     */
+    public Mono<Void> incrementQuantity(Long itemId, AuthUser authUser) {
+        return cache.incrementCount(itemId, authUser.getId())
+                 .then();
     }
 
-    public Mono<Void> decrementQuantity(Long itemId) {
-        return cartRepository.decrementItemCount(itemId)
-            .then(Mono.defer(() -> itemRepository.findById(itemId)))
-            .flatMap(item -> {
-                log.debug("Decrement count for item id: {}, title: {}, count: {}",
-                    item.getId(), item.getTitle(), item.getCount());
-                if (item.getCount() <= 0) {
-                    return deleteItemFromBasket(itemId);
+    /**
+     * Decrements the quantity of an item in the basket.
+     * If the quantity reaches zero, the item is removed from the basket.
+     *
+     * @param itemId   the ID of the item
+     * @param authUser the authenticated user
+     * @return a Mono that completes when the operation is done
+     */
+    public Mono<Void> decrementQuantity(Long itemId, AuthUser authUser) {
+        return cache.decrementCount(itemId, authUser.getId())
+            .flatMap(newValue -> {
+                if (newValue <= 0) {
+                    log.debug("Item count is zero, deleting item from basket");
+                    return deleteItemFromBasket(itemId, authUser);
                 }
-                return cache.decrementCount(itemId).then();
+                return Mono.empty();
             })
             .then();
     }
 
-    public Mono<Void> deleteItemFromBasket(Long itemId) {
-        return cartRepository.removeFromCart(itemId)
-            .then(cartRepository.resetItemCount(itemId))
-            .then(cache.resetCountValue(itemId))
+    /**
+     * Deletes an item from the user's basket.
+     *
+     * @param itemId   the ID of the item to delete
+     * @param authUser the authenticated user
+     * @return a Mono that completes when the item is deleted
+     */
+    public Mono<Void> deleteItemFromBasket(Long itemId, AuthUser authUser) {
+        return cartRepository.removeFromCart(itemId, authUser.getId())
+            .then(cache.resetCountValue(itemId, authUser.getId()))
             .then();
     }
 
+    /**
+     * Retrieves all items currently in the user's basket.
+     *
+     * @return a Flux of ItemModel representing the items in the basket
+     */
     public Flux<ItemModel> getItemsInBasket() {
-        return cartRepository.findAll()
-            .flatMap(cart -> itemRepository.findById(cart.getItemId()))
-            .map(item -> new ItemModel(
-                item.getId(),
-                item.getTitle(),
-                item.getDescription(),
-                item.getPrice(),
-                item.getImgPath(),
-                item.getCount()
-            ));
+        return currentUser()
+            .switchIfEmpty(Mono.error(new UserPrincipalNotFoundException("User not authenticated")))
+            .flatMapMany(user ->
+                cartRepository.findByUserId(user.getId())
+            .flatMap(cart -> cache.findById(cart.getItemId())));
     }
 
     @Transactional
-    public Mono<Void> updateCountInBasket(Long id, String action) {
+    public Mono<Void> updateCountInBasket(Long id, String action, AuthUser authUser) {
         return switch (action.toUpperCase()) {
-            case "PLUS", "ADD_TO_CART" -> incrementQuantity(id);
-            case "MINUS" -> decrementQuantity(id);
-            case "DELETE" -> deleteItemFromBasket(id);
+            case "PLUS", "ADD_TO_CART" -> incrementQuantity(id, authUser);
+            case "MINUS" -> decrementQuantity(id, authUser);
+            case "DELETE" -> deleteItemFromBasket(id, authUser);
             default -> Mono.error(new IllegalStateException("Invalid action: " + action));
         };
     }
 
+    /**
+     * Finds all orders for the current user and returns them as a Flux of OrderModel.
+     * Each OrderModel contains a list of ItemModel representing the items in the order.
+     *
+     * @return a Flux of OrderModel containing all orders for the current user
+     */
     public Flux<OrderModel> findAllOrders() {
-        Flux<Order> orderFlux = ordersRepository.findAll();
+        Flux<Order> orderFlux = currentUser().flatMapMany(user ->
+            ordersRepository.findByUserId(user.getId()));
 
         Flux<OrderItem> orderItemFlux = orderFlux
             .flatMap(order -> orderItemRepository.findByOrderId(order.getId())
@@ -178,8 +193,15 @@ public class CatalogService {
             .thenMany(Flux.fromIterable(orderModelMap.values()));
     }
 
-    public Mono<OrderModel> getOrderById(Long id) {
-        Mono<Order> orderMono = ordersRepository.findById(id)
+    /**
+     * Retrieves an order by its ID for the current user.
+     *
+     * @param id the ID of the order
+     * @param authUser the authenticated user
+     * @return a Mono containing the OrderModel if found, or an error if not found
+     */
+    public Mono<OrderModel> getOrderById(Long id, AuthUser authUser) {
+        Mono<Order> orderMono = ordersRepository.findByIdAndUserId(id, authUser.getId())
             .switchIfEmpty(Mono.error(new IllegalStateException("Order not found")));
 
         Flux<OrderItem> orderItemFlux = orderMono
@@ -211,78 +233,114 @@ public class CatalogService {
             });
     }
 
+    /**
+     * Buys all items in the user's basket, processes payment, and creates an order.
+     *
+     * @param authUser the authenticated user
+     * @return a Mono containing the ID of the created order
+     */
     @Transactional
-    public Mono<Long> buyItemsInBasket() {
-        Flux<Cart> cartFlux = cartRepository.findAll();
+    public Mono<Long> buyItemsInBasket(AuthUser authUser) {
+        Flux<Cart> cartFlux = cartRepository.findByUserId(authUser.getId());
 
         Flux<Item> itemFlux = cartFlux
-            .flatMap(cart -> itemRepository.findById(cart.getItemId()));
+            .flatMap(cart -> itemRepository.findById(cart.getItemId()))
+            .doOnNext(item ->
+                log.debug("Item found in cart: {}", item)
+            );
 
-        Mono<GetBalanceResponse> balanceMono = balanceApi.getBalance();
+        Mono<GetBalanceResponse> balanceMono = balanceApi.getBalance()
+            .doOnNext(balance ->
+                log.debug("Balance found: {}", balance)
+            );
 
         return itemFlux
-                .map(item ->
-                    new OrderItem()
-                        .setItemId(item.getId())
-                        .setQuantity(item.getCount())
-                        .setItem(item)
-                )
+            .flatMap(item ->
+                cache.findCountForItem(item.getId())
+                    .map(count ->
+                        new OrderItem()
+                            .setItemId(item.getId())
+                            .setQuantity(Long.parseLong(count))
+                            .setItem(item)
+                    )
+            )
             .collectList()
             .flatMap(orderItems -> {
-                BigDecimal total = orderItems.stream()
-                    .map(orderItem ->
-                        BigDecimal.valueOf(orderItem.getQuantity()).multiply(orderItem.getItem().getPrice()))
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+                BigDecimal totalPrice = getTotalPrice(orderItems);
 
                 Order order = new Order();
-                order.setTotal(total);
+                order.setTotal(totalPrice);
+                order.setUserId(authUser.getId());
                 log.debug("Order processing: Total: {}", order.getTotal());
 
-                return processPayment(balanceMono, total)
+                return processPayment(balanceMono, totalPrice.floatValue())
                     .then(Mono.defer(() -> ordersRepository.save(order)
-                    .flatMap(savedOrder -> {
-                        orderItems.forEach(orderItem -> {
-                            orderItem.setOrderId(savedOrder.getId());
-                            orderItem.setOrder(order);
-                        });
-                        return orderItemRepository.saveAll(orderItems)
-                            .flatMap(orderItem -> {
-                                Item item = orderItem.getItem();
-                                item.setCount(0L);
-                                return itemRepository.save(item).flatMap(i -> cache.save(toModel(item, 0)));
-                            })
-                            .then(cartRepository.deleteAll())
-                            .thenReturn(savedOrder.getId());
-                    })
+                        .flatMap(savedOrder -> {
+                            orderItems.forEach(orderItem -> {
+                                orderItem.setOrderId(savedOrder.getId());
+                                orderItem.setOrder(order);
+                            });
+                            return orderItemRepository.saveAll(orderItems)
+                                .flatMap(orderItem -> {
+                                    Item item = orderItem.getItem();
+                                    log.debug("Updating item stock when buy items: {}", item);
+                                    return cache.resetCountValue(item.getId(), authUser.getId());
+                                })
+                                .then(cartRepository.deleteByUserId(authUser.getId()))
+                                .thenReturn(savedOrder.getId());
+                        })
                         .onErrorReturn(Exception.class, -1L)));
             });
     }
 
-    private Mono<Void> processPayment(Mono<GetBalanceResponse> balanceMono, BigDecimal total)
-    {
+    /**
+     * Calculate the total price of all items in the order.
+     * @param orderItems List of OrderItem
+     * @return BigDecimal representing the total price
+     */
+    private static BigDecimal getTotalPrice(List<OrderItem> orderItems){
+        return orderItems.stream()
+            .map(orderItem ->
+                BigDecimal.valueOf(orderItem.getQuantity()).multiply(orderItem.getItem().getPrice()))
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * Ensures that the balance is not null and returns it as a Mono.
+     *
+     * @param dto the GetBalanceResponse containing the balance
+     * @return a Mono containing the balance if it is not null
+     */
+    private Mono<Float> requireNonNullBalance(GetBalanceResponse dto) {
+        if (dto == null || dto.getBalance() == null) {
+            return Mono.error(new IllegalStateException("Balance not found"));
+        }
+        return Mono.just(dto.getBalance());
+    }
+
+    /**
+     * Processes the payment by checking the balance and making the payment.
+     *
+     * @param balanceMono a Mono containing the GetBalanceResponse with the user's balance
+     * @param total       the total amount to be paid
+     * @return a Mono that completes when the payment is processed successfully
+     */
+    private Mono<Void> processPayment(Mono<GetBalanceResponse> balanceMono, float total) {
         return balanceMono
-            .flatMap(balance -> {
-                if (balance == null) {
-                    return Mono.error(new IllegalStateException("Balance not found"));
-                }
-                else if (balance.getBalance() == null || balance.getBalance().compareTo(0f) <= 0) {
-                    return Mono.error(new InsufficientFundsException("Insufficient funds", balance.getBalance()));
-                }
-                if (balance.getBalance().compareTo(total.floatValue()) < 0) {
-                    return Mono.error(new InsufficientFundsException("Insufficient funds", balance.getBalance()));
-                }
-                return paymentApi.makePayment(total.floatValue())
-                    .<UpdateBalanceResponse>handle((response, sink) ->
-                    {
-                        log.debug("Payment response: {}", response);
-                        if (response.getSuccess() == null || !response.getSuccess())
-                        {
-                            sink.error(new IllegalStateException("Payment failed"));
-                            return;
-                        }
-                        sink.next(response);
-                    });
-            })
+            .flatMap(this::requireNonNullBalance)
+            .filter(bal -> bal.compareTo(0f) > 0)
+            .switchIfEmpty(Mono.error(
+                () -> new InsufficientFundsException("Insufficient funds", 0f)))
+
+            .filter(bal -> bal.compareTo(total) >= 0)
+            .switchIfEmpty(Mono.error(
+                () -> new InsufficientFundsException("Insufficient funds", total)))
+
+            .flatMap(bal -> paymentApi.makePayment(total))
+
+            .filter(response -> Boolean.TRUE.equals(response.getSuccess()))
+            .switchIfEmpty(Mono.error(() -> new IllegalStateException("Payment failed")))
+
             .then();
     }
 }
