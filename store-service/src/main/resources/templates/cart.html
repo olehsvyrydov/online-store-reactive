@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <meta charset="UTF-8">
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      lang="en">
 
 <head>
     <title>Корзина товаров</title>
@@ -8,12 +10,19 @@
 
 <body>
 <div style="width:70%;margin-left: auto;margin-right: auto;">
+    <div style="float:right;">
+        <form action="/logout" method="post" th:if="${#authentication != null}">
+            <span th:text="${#authentication.name}">User</span>
+            <input type="submit" value="Logout"/>
+        </form>
+    </div>
 <a href="/orders" style="float:right;">
     <b>ЗАКАЗЫ &cudarrr;</b>
 </a>
 <a href="/main/items" style="float:right;">
     <b>ГЛАВНАЯ &cudarrr;</b>
 </a>
+
 <h1 style="text-align:center;">Корзина товаров</h1>
     <p style="text-align:center;color:red" th:if="${session.error != null}" th:text="${session.error}">Error message</p>
 
@@ -23,7 +32,9 @@
             <table>
                 <tr>
                     <td>
-                        <img width="300" alt="image" height="300" th:src="${itemModel.getImgPath()}">
+                        <a th:href="${'/items/'+itemModel.getId()}">
+                            <img width="300" alt="image" height="300" th:src="${itemModel.getImgPath()}">
+                        </a>
                     </td>
                 </tr>
                 <tr>
@@ -31,7 +42,7 @@
                         <b th:text="${itemModel.getTitle()}"></b>
                     </td>
                     <td>
-                        <b th:text="${itemModel.getPrice()}+' руб.'"></b>
+                        <b th:text="${#numbers.formatDecimal(itemModel.getPrice(),2,2)}+' руб.'"></b>
                     </td>
                 </tr>
                 <tr><td th:text="${itemModel.getDescription()}"></td></tr>
@@ -55,8 +66,13 @@
     </tr>
     <tr>
         <td style="text-align:right">
-            <form action="/buy" method="post" th:if="${!empty}">
-                <button>Купить</button>
+            <form th:action="@{/buy}" method="post" th:if="${!empty}">
+                <button class="btn btn-primary"
+                        th:disabled="${!paymentAvailable}"
+                        th:title="${paymentAvailable} ? 'Купить'
+                                           : 'Payment service недоступен или корзина пуста'">
+                    Купить
+                </button>
             </form>
         </td>
     </tr>

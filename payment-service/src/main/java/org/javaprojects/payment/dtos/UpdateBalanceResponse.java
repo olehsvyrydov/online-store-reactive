@@ -12,7 +12,7 @@ import java.util.Objects;
  * UpdateBalanceResponse
  */
 
-@Generated(value = "org.openapitools.codegen.languages.SpringCodegen", comments = "Generator version: 7.12.0")
+@Generated(value = "org.openapitools.codegen.languages.SpringCodegen", comments = "Generator version: 7.13.0")
 public class UpdateBalanceResponse implements Serializable {
 
   private static final long serialVersionUID = 1L;

@@ -1,5 +1,6 @@
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /opt/app
+RUN apk add --no-cache bash curl
 ARG JAR_FILE=build/libs/*.jar
 COPY ${JAR_FILE} ./payment-service.jar
 RUN chmod +x ./payment-service.jar

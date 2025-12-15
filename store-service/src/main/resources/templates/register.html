@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Register</title>
+    <!-- A sprinkle of Tailwind (optional) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Remove OS styling so Tailwind rules apply 1-for-1 */
+        input, button, select, textarea {
+            appearance: none;
+            -webkit-appearance: none;
+            border-radius: 0;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center bg-gray-50">
+<main class="w-full max-w-md bg-white shadow-xl rounded-2xl p-8 space-y-6">
+
+    <h1 class="text-2xl font-semibold text-center">Создайте новый аккаунт</h1>
+
+    <!-- Success / error feedback -->
+    <div th:if="${success}" class="p-3 bg-green-100 text-green-800 rounded">
+        🎉 Registration successful — go ahead and log in!
+    </div>
+    <div th:if="${error}" class="p-3 bg-red-100 text-red-800 rounded" th:text="${error}">
+        Something went wrong; please try again.
+    </div>
+
+    <!-- Registration form -->
+    <form th:action="@{/auth/register}" method="post" class="space-y-4">
+
+        <!-- CSRF token (only present if CSRF is enabled) -->
+        <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+
+        <label class="block">
+            <span class="text-sm">Username</span>
+            <input name="username" type="text" required
+                   class="mt-1 w-full rounded-md border border-gray-300 focus:ring-2 focus:ring-indigo-300 p-2"/>
+        </label>
+
+        <label class="block">
+            <span class="text-sm">Password</span>
+            <input name="password" type="password" required minlength="8"
+                   class="mt-1 w-full rounded-md border border-gray-300 focus:ring-2 focus:ring-indigo-300 p-2"/>
+        </label>
+
+        <label class="block">
+            <span class="text-sm">Confirm password</span>
+            <input name="confirmPassword" type="password" required minlength="8"
+                   class="mt-1 w-full rounded-md border border-gray-300 focus:ring-2 focus:ring-indigo-300 p-2"/>
+        </label>
+
+        <button type="submit"
+                class="w-full py-2 rounded bg-indigo-600 hover:bg-indigo-700 text-white font-medium">
+            Sign up
+        </button>
+    </form>
+
+    <p class="text-center text-sm">
+        Already have an account?
+        <a th:href="@{/login}" class="text-indigo-600 hover:underline">Log in</a>
+    </p>
+
+</main>
+</body>
+</html>

@@ -3,51 +3,82 @@ package org.javaprojects.payment.controllers;
 import org.javaprojects.payment.dtos.UpdateBalanceResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.reactive.server.WebTestClient;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@ActiveProfiles("test")
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
             "app.initial-balance=10.0"
         })
+@AutoConfigureMockMvc
 class PaymentApiControllerTest
 {
     @Autowired
-    private TestRestTemplate restTemplate;
-    @LocalServerPort
-    int localPort;
+    private WebTestClient webTestClient;
+    @MockitoBean
+    ReactiveJwtDecoder jwtDecoder;
+
     @Test
+    @WithMockUser
     void makePayment_Success()
     {
-        var response = restTemplate.getForEntity("http://localhost:" + localPort + "/pay/1.0", UpdateBalanceResponse.class);
-        assertTrue(response.getStatusCode().is2xxSuccessful());
-        assertNotNull(response.getBody());
-        assertEquals(Boolean.TRUE, response.getBody().getSuccess());
-        assertEquals(9.0F, response.getBody().getCurrentBalance());
-        assertNull(response.getBody().getError());
+        webTestClient
+            .get()
+            .uri("/pay/1.0")
+            .header("Content-Type", "application/json")
+            .exchange()
+            .expectStatus().isOk()
+            .expectBody(UpdateBalanceResponse.class)
+            .value(response -> {
+                assertNotNull(response);
+                assertEquals(Boolean.TRUE, response.getSuccess());
+                assertEquals(9.0F, response.getCurrentBalance());
+                assertNull(response.getError());
+            });
     }
 
     @Test
+    @WithMockUser
     void makePayment_LowBalance()
     {
-        var response = restTemplate.getForEntity("http://localhost:" + localPort + "/pay/20.0", UpdateBalanceResponse.class);
-        assertTrue(response.getStatusCode().is4xxClientError());
-        assertNotNull(response.getBody());
-        assertEquals(Boolean.FALSE, response.getBody().getSuccess());
-        assertEquals(10.0F, response.getBody().getCurrentBalance());
-        assertNotNull(response.getBody().getError());
+        webTestClient
+            .get()
+            .uri("/pay/20.0")
+            .header("Content-Type", "application/json")
+            .exchange()
+            .expectStatus().is4xxClientError()
+            .expectBody(UpdateBalanceResponse.class)
+            .value(response -> {
+                assertNotNull(response);
+                assertEquals(Boolean.FALSE, response.getSuccess());
+                assertEquals(10.0F, response.getCurrentBalance());
+                assertNotNull(response.getError());
+            });
     }
 
     @Test
+    @WithMockUser
     void makePayment_BadRequest()
     {
-        var response = restTemplate.getForEntity("http://localhost:" + localPort + "/pay/wrong", UpdateBalanceResponse.class);
-        assertTrue(response.getStatusCode().is4xxClientError());
-        assertNotNull(response.getBody());
-        assertNotNull(response.getBody().getError());
+        webTestClient
+            .get()
+            .uri("/pay/wrong")
+            .header("Content-Type", "application/json")
+            .exchange()
+            .expectStatus().is4xxClientError()
+            .expectBody(UpdateBalanceResponse.class)
+            .value(response -> {
+                assertNotNull(response);
+                assertNotNull(response.getError());
+            });
     }
 }
